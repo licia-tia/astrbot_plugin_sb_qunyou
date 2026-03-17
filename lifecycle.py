@@ -8,6 +8,7 @@ not in bootstrap() (Phase 1) when inst_map is empty.
 from __future__ import annotations
 
 import asyncio
+import datetime as _dt
 import os
 from typing import TYPE_CHECKING
 
@@ -51,11 +52,13 @@ class Lifecycle:
         from .services.emotion import EmotionEngine
         from .services.jargon import JargonService
         from .services.hook_handler import HookHandler
+        from .services.persona_binding import PersonaBindingService
 
         p.group_persona = GroupPersonaService(config, p.llm)
         p.speaker_memory = SpeakerMemoryService(config, p.llm)
         p.emotion = EmotionEngine(config, p.llm)
         p.jargon = JargonService(config, p.llm)
+        p.persona_binding = PersonaBindingService(config, p.llm)
         p.hook_handler = HookHandler(config, p)
 
         # Pipeline
@@ -64,9 +67,6 @@ class Lifecycle:
 
         p.debounce = DebounceManager(config.debounce, llm=p.llm)
         p.topic_router = TopicThreadRouter(config.topic, p.llm)
-
-        # Background tasks
-        p.background_tasks: set[asyncio.Task] = set()
 
         logger.info("[Lifecycle] Bootstrap complete — all services created")
 
@@ -97,6 +97,24 @@ class Lifecycle:
 
         # 3. LightRAG Knowledge Engine (lazy-init)
         self._init_knowledge(config, p)
+
+        # 3.5 Warmup LightRAG for recently active groups
+        if getattr(p, 'knowledge', None) and self._db:
+            try:
+                async with self._db.session() as session:
+                    from .db.repo import Repository
+                    repo = Repository(session)
+                    active_groups = await repo.get_recently_active_group_ids(
+                        since=_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=7),
+                        limit=config.knowledge.warmup_active_groups_limit,
+                    )
+                if active_groups:
+                    await p.knowledge.warmup(active_groups)
+                    logger.info(
+                        f"[Lifecycle] LightRAG pre-warmed {len(active_groups)} active groups"
+                    )
+            except Exception as e:
+                logger.debug(f"[Lifecycle] LightRAG warmup failed: {e}")
 
         # 4. Background retry if providers not yet available
         if not getattr(p, 'reranker', None) or (
@@ -194,7 +212,7 @@ class Lifecycle:
                 logger.warning("[Lifecycle] FastAPI not installed, WebUI disabled")
                 return
 
-            app = create_api(lambda: self._db)
+            app = create_api(lambda: self._db, config=config.webui)
 
             # Serve static frontend
             from fastapi.staticfiles import StaticFiles
@@ -236,6 +254,8 @@ class Lifecycle:
         knowledge = getattr(p, 'knowledge', None)
         if knowledge:
             try:
+                if hasattr(knowledge, 'finalize'):
+                    await knowledge.finalize()
                 await knowledge.close()
                 logger.info("[Lifecycle] LightRAG closed")
             except Exception as e:

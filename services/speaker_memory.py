@@ -48,9 +48,11 @@ class SpeakerMemoryService:
 
         try:
             # 1. LLM extract facts
+            # Truncate to prevent prompt injection via extremely long messages
+            message_truncated = message[:2000] if len(message) > 2000 else message
             prompt = MEMORY_EXTRACT.format(
-                sender_name=sender_name or user_id,
-                message=message,
+                sender_name=(sender_name or user_id)[:50],
+                message=message_truncated,
             )
             response = await self._llm.fast_chat(prompt)
             if not response:

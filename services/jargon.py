@@ -40,10 +40,13 @@ class JargonService:
     #  Real-time counting
     # ================================================================== #
 
-    def count_words(self, group_id: str, text: str) -> None:
-        """Tokenize with jieba and count word frequencies (in-memory)."""
+    def count_words(self, group_id: str, text: str) -> int:
+        """Tokenize with jieba and count word frequencies (in-memory).
+
+        Returns the total count for the group (for flush threshold checks).
+        """
         if not self._config.enabled:
-            return
+            return 0
         try:
             import jieba
             words = jieba.lcut(text)
@@ -57,8 +60,10 @@ class JargonService:
             if group_id not in self._counters:
                 self._counters[group_id] = collections.Counter()
             self._counters[group_id].update(words)
+            return sum(self._counters[group_id].values())
         except Exception as e:
             logger.debug(f"[Jargon] jieba tokenize error: {e}")
+            return 0
 
     # ================================================================== #
     #  DB flushing

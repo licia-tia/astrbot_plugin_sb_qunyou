@@ -443,7 +443,15 @@ class DebounceManager:
         logger.debug(f"[Debounce] Session started - {uid}")
 
         # Block until timer fires or interrupt
-        await flush_event.wait()
+        try:
+            await flush_event.wait()
+        except asyncio.CancelledError:
+            # Clean up on cancellation
+            if uid in self._sessions:
+                session_data = self._sessions.pop(uid)
+                if session_data.timer_task:
+                    session_data.timer_task.cancel()
+            raise
 
         # ---- Settlement ----
         if uid not in self._sessions:

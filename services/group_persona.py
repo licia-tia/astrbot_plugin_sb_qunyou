@@ -70,6 +70,7 @@ class GroupPersonaService:
         """
         logger.info(f"[GroupPersona] Batch learning started for {group_id}")
 
+        job_id = None
         try:
             async with db.session() as session:
                 from ..db.repo import Repository
@@ -119,7 +120,7 @@ class GroupPersonaService:
                     await session.commit()
                 return
 
-            # 5. Update profile
+            # 5. Update profile or create pending review
             async with db.session() as session:
                 repo = Repository(session)
                 profile = await repo.get_or_create_group_profile(group_id)
@@ -134,32 +135,65 @@ class GroupPersonaService:
                     # Keep only last N versions
                     history = history[-self._config.max_history_versions:]
 
-                await repo.update_group_profile(
-                    group_id,
-                    learned_prompt=summary.strip(),
-                    learned_prompt_history=history,
-                    message_count_since_learn=0,  # reset counter
-                )
+                review_enabled = self._global_config.review_gate.enabled_for_group_persona
+                review_id = None
+                if review_enabled:
+                    await repo.supersede_pending_reviews(group_id, "group_persona")
+                    review = await repo.create_learned_prompt_review(
+                        group_id=group_id,
+                        prompt_type="group_persona",
+                        old_value=profile.learned_prompt,
+                        proposed_value=summary.strip(),
+                        change_summary="群画像学习生成了新的 learned_prompt，等待管理员审核后生效。",
+                        metadata_json={
+                            "messages_analyzed": len(messages),
+                            "summary_length": len(summary),
+                        },
+                    )
+                    review_id = review.id
+                    await repo.update_group_profile(
+                        group_id,
+                        message_count_since_learn=0,
+                    )
+                else:
+                    await repo.update_group_profile(
+                        group_id,
+                        learned_prompt=summary.strip(),
+                        learned_prompt_history=history,
+                        message_count_since_learn=0,
+                    )
                 await repo.complete_learning_job(
                     job_id,
-                    {"summary_length": len(summary), "messages_analyzed": len(messages)},
+                    {
+                        "summary_length": len(summary),
+                        "messages_analyzed": len(messages),
+                        "review_required": review_enabled,
+                        "review_id": review_id,
+                    },
                 )
                 await session.commit()
 
-            logger.info(
-                f"[GroupPersona] Batch learning completed for {group_id}, "
-                f"summary: {len(summary)} chars"
-            )
+            if review_enabled:
+                logger.info(
+                    f"[GroupPersona] Batch learning created pending review for {group_id}, "
+                    f"summary: {len(summary)} chars"
+                )
+            else:
+                logger.info(
+                    f"[GroupPersona] Batch learning completed for {group_id}, "
+                    f"summary: {len(summary)} chars"
+                )
 
         except Exception as e:
             logger.error(
                 f"[GroupPersona] Batch learning failed for {group_id}: {e}",
                 exc_info=True,
             )
-            try:
-                async with db.session() as session:
-                    repo = Repository(session)
-                    await repo.fail_learning_job(job_id, str(e))
-                    await session.commit()
-            except Exception:
-                pass
+            if job_id is not None:
+                try:
+                    async with db.session() as session:
+                        repo = Repository(session)
+                        await repo.fail_learning_job(job_id, str(e))
+                        await session.commit()
+                except Exception:
+                    pass

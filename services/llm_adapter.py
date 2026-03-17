@@ -90,11 +90,26 @@ class LLMAdapter:
                 logger.warning("[LLMAdapter] Provider has no text_chat method")
                 return ""
 
-            result = await text_completion(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                # Pass optional kwargs that the provider may support
-            )
+            # Build kwargs, forwarding supported parameters
+            kwargs = {
+                "prompt": prompt,
+                "system_prompt": system_prompt,
+            }
+            if max_tokens != 1024:  # Only pass if non-default
+                kwargs["max_tokens"] = max_tokens
+            if temperature != 0.7:
+                kwargs["temperature"] = temperature
+            if response_format:
+                kwargs["response_format"] = response_format
+
+            try:
+                result = await text_completion(**kwargs)
+            except TypeError:
+                # Provider may not support all kwargs — fall back to basic call
+                result = await text_completion(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                )
             if result and hasattr(result, "completion_text"):
                 return result.completion_text or ""
             if isinstance(result, str):

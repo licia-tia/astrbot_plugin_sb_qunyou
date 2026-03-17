@@ -87,27 +87,39 @@ class EmotionEngine:
 
         try:
             # LLM emotion analysis
-            prompt = EMOTION_ANALYZE.format(message=message)
+            prompt = EMOTION_ANALYZE.format(message=message[:1000])
             response = await self._llm.fast_chat(prompt)
 
             if not response:
                 return None
 
-            # Parse mood from response
             new_mood = self._parse_mood(response)
             if not new_mood:
                 return None
 
-            # Get current mood to check if it actually changed
-            current = await self.get_mood(group_id, db)
-            if new_mood == current:
-                return None
-
-            # Update DB
+            # Single session: check current mood + update if changed
             async with db.session() as session:
                 from ..db.repo import Repository
                 repo = Repository(session)
-                await repo.get_or_create_emotion(group_id)  # ensure exists
+                state = await repo.get_or_create_emotion(
+                    group_id, self._config.initial_mood
+                )
+
+                # Apply natural decay inline
+                current = state.mood
+                if current != "neutral" and self._config.decay_hours > 0:
+                    elapsed = _dt.datetime.now(_dt.timezone.utc) - (
+                        state.updated_at.replace(tzinfo=_dt.timezone.utc)
+                        if state.updated_at.tzinfo is None
+                        else state.updated_at
+                    )
+                    if elapsed.total_seconds() > self._config.decay_hours * 3600:
+                        current = "neutral"
+
+                if new_mood == current:
+                    await session.commit()
+                    return None
+
                 await repo.update_emotion(
                     group_id,
                     new_mood,
@@ -149,9 +161,18 @@ class EmotionEngine:
 
     def _parse_mood(self, response: str) -> Optional[str]:
         """Extract mood label from LLM response."""
-        response = response.strip().lower()
+        import re
+        # Try exact match first (response is just the mood label)
+        cleaned = response.strip().lower().rstrip(".,!;:。！，；：")
+        if cleaned in MOODS:
+            return cleaned
+        # Fallback: check first word
+        first_word = cleaned.split()[0] if cleaned.split() else ""
+        if first_word in MOODS:
+            return first_word
+        # Last resort: check if any mood appears as a standalone word
         for mood in MOODS:
-            if mood in response:
+            if re.search(r'\b' + re.escape(mood) + r'\b', cleaned):
                 return mood
         return None
 

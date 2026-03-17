@@ -12,7 +12,9 @@ Requires ``lightrag-hku`` (optional dependency).
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
+import re
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from astrbot.api import logger
@@ -50,6 +52,7 @@ class LightRAGKnowledgeManager:
             config.knowledge, "lightrag_working_dir", "./lightrag_data"
         )
         self._lock = asyncio.Lock()
+        self._retrieval_only_supported: bool | None = None
 
         if not HAS_LIGHTRAG:
             logger.warning(
@@ -61,10 +64,49 @@ class LightRAGKnowledgeManager:
         """Whether LightRAG is available."""
         return HAS_LIGHTRAG
 
+    @staticmethod
+    def _sanitize_group_id(group_id: str) -> str:
+        """Sanitize group_id to prevent path traversal."""
+        return re.sub(r'[^\w\-.]', '_', group_id)
+
+    @staticmethod
+    def _extract_context_result(result: Any) -> str:
+        if isinstance(result, dict):
+            parts: list[str] = []
+            for key in ("entities", "relationships", "chunks", "context"):
+                value = result.get(key)
+                if value:
+                    parts.append(str(value))
+            return "\n\n".join(parts) if parts else ""
+        return result if isinstance(result, str) else str(result)
+
+    def _build_query_param(
+        self,
+        mode: str,
+        retrieval_only: bool,
+    ) -> Any:
+        if not QueryParam:
+            return None
+
+        kwargs: dict[str, Any] = {"mode": mode}
+        if retrieval_only:
+            if self._retrieval_only_supported is None:
+                try:
+                    sig = inspect.signature(QueryParam)
+                    self._retrieval_only_supported = "only_need_context" in sig.parameters
+                except (TypeError, ValueError):
+                    self._retrieval_only_supported = False
+            if self._retrieval_only_supported:
+                kwargs["only_need_context"] = True
+
+        return QueryParam(**kwargs)
+
     async def _get_instance(self, group_id: str) -> Optional[Any]:
         """Get or create a LightRAG instance for a group."""
         if not HAS_LIGHTRAG:
             return None
+
+        group_id = self._sanitize_group_id(group_id)
 
         if group_id in self._instances:
             return self._instances[group_id]
@@ -75,6 +117,13 @@ class LightRAGKnowledgeManager:
                 return self._instances[group_id]
 
             working_dir = os.path.join(self._base_dir, group_id)
+            # Verify the resolved path is under base_dir to prevent traversal
+            resolved = os.path.realpath(working_dir)
+            base_resolved = os.path.realpath(self._base_dir)
+            if not resolved.startswith(base_resolved + os.sep) and resolved != base_resolved:
+                logger.error(f"[LightRAG] Path traversal attempt blocked for group_id: {group_id}")
+                return None
+
             os.makedirs(working_dir, exist_ok=True)
 
             try:
@@ -97,6 +146,7 @@ class LightRAGKnowledgeManager:
         Returns:
             True on success, False on failure.
         """
+        group_id = self._sanitize_group_id(group_id)
         if not text or not text.strip():
             return False
 
@@ -115,18 +165,20 @@ class LightRAGKnowledgeManager:
         self,
         group_id: str,
         query_text: str,
-        mode: str = "hybrid",
+        mode: str = "mix",
+        retrieval_only: bool = False,
     ) -> str:
         """Query a group's knowledge graph.
 
         Args:
             group_id: The group identifier.
             query_text: The query string.
-            mode: LightRAG query mode ("naive", "local", "global", "hybrid").
+            mode: LightRAG query mode ("naive", "local", "global", "hybrid", "mix").
 
         Returns:
             Query result text, or "" on failure.
         """
+        group_id = self._sanitize_group_id(group_id)
         if not query_text or not query_text.strip():
             return ""
 
@@ -136,15 +188,32 @@ class LightRAGKnowledgeManager:
 
         try:
             if QueryParam:
-                param = QueryParam(mode=mode)
+                param = self._build_query_param(mode, retrieval_only)
                 result = await instance.aquery(query_text, param=param)
             else:
                 result = await instance.aquery(query_text)
 
-            return result if isinstance(result, str) else str(result)
+            return self._extract_context_result(result)
         except Exception as e:
             logger.error(f"[LightRAG] Query failed for {group_id}: {e}")
             return ""
+
+    async def warmup(self, group_ids: List[str]) -> None:
+        """Compatibility wrapper for lifecycle warmup."""
+        await self.warmup_instances(group_ids)
+
+    async def finalize(self) -> None:
+        """Flush and finalize LightRAG storages when supported."""
+        for gid, instance in list(self._instances.items()):
+            try:
+                if hasattr(instance, "finalize_storages"):
+                    await instance.finalize_storages()
+                elif hasattr(instance, "flush"):
+                    maybe_coro = instance.flush()
+                    if inspect.isawaitable(maybe_coro):
+                        await maybe_coro
+            except Exception as e:
+                logger.debug(f"[LightRAG] Finalize failed for {gid}: {e}")
 
     async def warmup_instances(self, group_ids: List[str]) -> None:
         """Pre-warm LightRAG instances for known groups."""
@@ -160,6 +229,8 @@ class LightRAGKnowledgeManager:
             try:
                 if hasattr(instance, "close"):
                     await instance.close()
+                elif hasattr(instance, "finalize_storages"):
+                    await instance.finalize_storages()
             except Exception:
                 pass
         self._instances.clear()

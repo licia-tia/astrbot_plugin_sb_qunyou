@@ -26,11 +26,18 @@ class Database:
         """Create the engine, enable pgvector, and create all tables."""
         from .models import Base  # local import to avoid circular deps
 
+        if self._config.pool_min_size > self._config.pool_size:
+            logger.warning(
+                "[DB] pool_min_size exceeds pool_size; clamping persistent pool "
+                f"to {self._config.pool_size}"
+            )
+
+        pool_options = self._config.sqlalchemy_pool_options()
         self.engine = create_async_engine(
-            self._config.dsn,
-            pool_size=self._config.pool_size,
+            self._config.connection_url(),
             echo=self._config.echo,
             pool_pre_ping=True,
+            **pool_options,
         )
         self.session_factory = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False

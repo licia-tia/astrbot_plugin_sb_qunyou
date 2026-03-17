@@ -45,7 +45,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
-| `db_dsn` | `postgresql+asyncpg://...` | PostgreSQL 连接串 |
+| `Database_Settings.*` | none | PostgreSQL 连接配置：填写 `dsn`，或填写 `host/port/user/password/database_name` |
 | `debounce_mode` | `time` | 防抖模式: off / time / time_bert |
 | `topic_enabled` | `true` | 话题路由开关 |
 | `emotion_enabled` | `true` | 情绪引擎开关 |

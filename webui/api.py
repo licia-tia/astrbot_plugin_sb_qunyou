@@ -73,12 +73,52 @@ if HAS_FASTAPI:
         total_jargon: int = 0
         total_memories: int = 0
 
+    class ReviewResponse(APIModel):
+        id: int
+        group_id: str
+        prompt_type: str
+        status: str
+        old_value: str
+        proposed_value: str
+        change_summary: str
+        metadata_json: Optional[dict] = None
+        target_tone_version_id: Optional[int] = None
+        reviewed_by: Optional[str] = None
+        review_notes: str = ""
+        created_at: Optional[str] = None
+        reviewed_at: Optional[str] = None
+        activated_at: Optional[str] = None
 
-def create_api(db_getter) -> "FastAPI":
+    class ReviewDecision(APIModel):
+        reviewed_by: Optional[str] = None
+        review_notes: str = ""
+
+
+def _to_review_response(review) -> "ReviewResponse":
+    return ReviewResponse(
+        id=review.id,
+        group_id=review.group_id,
+        prompt_type=review.prompt_type,
+        status=review.status,
+        old_value=review.old_value,
+        proposed_value=review.proposed_value,
+        change_summary=review.change_summary,
+        metadata_json=review.metadata_json,
+        target_tone_version_id=review.target_tone_version_id,
+        reviewed_by=review.reviewed_by,
+        review_notes=review.review_notes,
+        created_at=str(review.created_at) if review.created_at else None,
+        reviewed_at=str(review.reviewed_at) if review.reviewed_at else None,
+        activated_at=str(review.activated_at) if review.activated_at else None,
+    )
+
+
+def create_api(db_getter, config=None) -> "FastAPI":
     """Create the FastAPI app and mount all routes.
 
     Args:
         db_getter: callable returning the Database instance.
+        config: optional WebUIConfig for CORS origins and auth token.
     """
     if not HAS_FASTAPI:
         raise RuntimeError("FastAPI not installed — pip install fastapi uvicorn")
@@ -90,12 +130,39 @@ def create_api(db_getter) -> "FastAPI":
         redoc_url=None,
     )
 
+    cors_origins = ["http://localhost:7834", "http://127.0.0.1:7834"]
+    if config and hasattr(config, 'cors_origins'):
+        cors_origins = config.cors_origins
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Auth middleware
+    auth_token = config.auth_token if config else None
+
+    if auth_token:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.requests import Request
+        from starlette.responses import JSONResponse
+
+        class AuthMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next):
+                # Skip auth for docs and OPTIONS
+                if request.url.path in ("/api/docs", "/openapi.json") or request.method == "OPTIONS":
+                    return await call_next(request)
+                # Skip auth for static files
+                if not request.url.path.startswith("/api/"):
+                    return await call_next(request)
+                auth_header = request.headers.get("authorization", "")
+                if not auth_header.startswith("Bearer ") or auth_header[7:] != auth_token:
+                    return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+                return await call_next(request)
+
+        app.add_middleware(AuthMiddleware)
 
     def _db() -> "Database":
         d = db_getter()
@@ -167,8 +234,20 @@ def create_api(db_getter) -> "FastAPI":
         db = _db()
         async with db.session() as session:
             from ..db.repo import Repository
+            from ..db.models import ActiveThread
+            from sqlalchemy import select
             repo = Repository(session)
-            threads = await repo.get_active_threads(group_id, limit=50)
+            if include_archived:
+                stmt = (
+                    select(ActiveThread)
+                    .where(ActiveThread.group_id == group_id)
+                    .order_by(ActiveThread.last_activity.desc())
+                    .limit(50)
+                )
+                result = await session.execute(stmt)
+                threads = result.scalars().all()
+            else:
+                threads = await repo.get_active_threads(group_id, limit=50)
             return [
                 ThreadResponse(
                     id=t.id,
@@ -244,6 +323,16 @@ def create_api(db_getter) -> "FastAPI":
         async with db.session() as session:
             from ..db.repo import Repository
             repo = Repository(session)
+            # Verify ownership before deleting
+            from sqlalchemy import select
+            from ..db.models import JargonTerm
+            stmt = select(JargonTerm).where(
+                JargonTerm.id == jargon_id,
+                JargonTerm.group_id == group_id,
+            )
+            result = await session.execute(stmt)
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(404, "Jargon term not found in this group")
             await repo.delete_jargon(jargon_id)
             await session.commit()
         return {"ok": True}
@@ -310,5 +399,63 @@ def create_api(db_getter) -> "FastAPI":
                 total_jargon=total_jargon,
                 total_memories=total_memories,
             )
+
+    # ------------------------------------------------------------------ #
+    #  Reviews
+    # ------------------------------------------------------------------ #
+
+    @app.get("/api/reviews/pending", response_model=list[ReviewResponse])
+    async def list_pending_reviews(group_id: str | None = None, prompt_type: str | None = None, limit: int = 50):
+        db = _db()
+        async with db.session() as session:
+            from ..db.repo import Repository
+            repo = Repository(session)
+            reviews = await repo.get_pending_learned_prompt_reviews(
+                group_id=group_id,
+                prompt_type=prompt_type,
+                limit=limit,
+            )
+            return [_to_review_response(review) for review in reviews]
+
+    @app.get("/api/reviews/history/{group_id}", response_model=list[ReviewResponse])
+    async def get_review_history(group_id: str, prompt_type: str | None = None, limit: int = 50):
+        db = _db()
+        async with db.session() as session:
+            from ..db.repo import Repository
+            repo = Repository(session)
+            reviews = await repo.get_review_history(group_id, prompt_type=prompt_type, limit=limit)
+            return [_to_review_response(review) for review in reviews]
+
+    @app.post("/api/reviews/{review_id}/approve")
+    async def approve_review(review_id: int, body: ReviewDecision):
+        db = _db()
+        async with db.session() as session:
+            from ..db.repo import Repository
+            repo = Repository(session)
+            ok = await repo.approve_learned_prompt_review(
+                review_id,
+                reviewed_by=body.reviewed_by,
+                review_notes=body.review_notes,
+            )
+            await session.commit()
+        if not ok:
+            raise HTTPException(404, "Review not found or cannot be approved")
+        return {"ok": True}
+
+    @app.post("/api/reviews/{review_id}/reject")
+    async def reject_review(review_id: int, body: ReviewDecision):
+        db = _db()
+        async with db.session() as session:
+            from ..db.repo import Repository
+            repo = Repository(session)
+            ok = await repo.reject_learned_prompt_review(
+                review_id,
+                reviewed_by=body.reviewed_by,
+                review_notes=body.review_notes,
+            )
+            await session.commit()
+        if not ok:
+            raise HTTPException(404, "Review not found or cannot be rejected")
+        return {"ok": True}
 
     return app

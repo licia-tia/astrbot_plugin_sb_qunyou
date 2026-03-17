@@ -33,10 +33,9 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 def _sliding_average(
-    old: list[float], new: list[float], count: int
+    old: list[float], new: list[float], alpha: float = 0.1
 ) -> list[float]:
-    """Compute sliding average of centroid with new vector."""
-    alpha = 1.0 / (count + 1)
+    """Compute exponential moving average of centroid with new vector."""
     va = np.array(old, dtype=np.float32)
     vn = np.array(new, dtype=np.float32)
     result = va * (1 - alpha) + vn * alpha
@@ -113,7 +112,7 @@ class TopicThreadRouter:
                 # Join existing thread
                 new_count = best_thread.message_count + 1
                 new_centroid = _sliding_average(
-                    list(best_thread.centroid), embedding, best_thread.message_count
+                    list(best_thread.centroid), embedding, self._config.centroid_ema_alpha
                 )
                 await repo.update_thread(
                     best_thread.id,

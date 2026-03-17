@@ -1,5 +1,7 @@
 {
   "Debounce_Settings": {
+    "type": "object",
+    "items": {
     "mode": {
       "description": "消息防抖模式：off=关闭, time=仅时间窗口, time_bert=时间+语义完整性",
       "type": "string",
@@ -8,7 +10,7 @@
     },
     "time_window_seconds": {
       "description": "时间窗口（秒）：同一用户连续消息在此间隔内会被拼接",
-      "type": "number",
+      "type": "float",
       "default": 3.0
     },
     "merge_separator": {
@@ -28,11 +30,14 @@
     },
     "max_typing_wait": {
       "description": "输入状态感知最大等待秒数（超时保护）",
-      "type": "number",
+      "type": "float",
       "default": 60.0
+    }
     }
   },
   "Topic_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用话题路由（解决群聊多话题并发问题）",
       "type": "bool",
@@ -40,23 +45,29 @@
     },
     "similarity_threshold": {
       "description": "话题相似度阈值（0~1），低于此值创建新话题线程",
-      "type": "number",
+      "type": "float",
       "default": 0.75
     },
     "thread_ttl_minutes": {
       "description": "话题线程存活时间（分钟），超时后自动归档",
-      "type": "number",
+      "type": "int",
       "default": 30
+    }
     }
   },
   "GroupPersona_Settings": {
+    "type": "object",
+    "items": {
     "batch_learning_threshold": {
       "description": "群画像异步学习触发阈值（消息条数）",
-      "type": "number",
+      "type": "int",
       "default": 200
+    }
     }
   },
   "Emotion_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用情绪引擎",
       "type": "bool",
@@ -64,11 +75,14 @@
     },
     "sensitivity": {
       "description": "情绪敏感度（0.0=极稳定, 1.0=极善变）",
-      "type": "number",
+      "type": "float",
       "default": 0.5
+    }
     }
   },
   "Jargon_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用黑话统计",
       "type": "bool",
@@ -76,18 +90,64 @@
     },
     "min_frequency": {
       "description": "黑话最低出现次数",
-      "type": "number",
+      "type": "int",
       "default": 5
+    }
     }
   },
   "Database_Settings": {
+    "type": "object",
+    "items": {
     "dsn": {
-      "description": "PostgreSQL 连接字符串",
+      "description": "可选 PostgreSQL DSN 覆盖项；留空时使用下方主机/端口/账号配置",
       "type": "string",
-      "default": "postgresql+asyncpg://postgres:password@localhost:5432/qunyou"
+      "default": ""
+    },
+    "host": {
+      "description": "PostgreSQL 主机名；dsn 为空时必填",
+      "type": "string",
+      "default": ""
+    },
+    "port": {
+      "description": "PostgreSQL 端口",
+      "type": "int",
+      "default": 5432
+    },
+    "user": {
+      "description": "PostgreSQL 用户名；dsn 为空时必填",
+      "type": "string",
+      "default": ""
+    },
+    "password": {
+      "description": "PostgreSQL 密码；dsn 为空时必填",
+      "type": "string",
+      "default": ""
+    },
+    "database_name": {
+      "description": "PostgreSQL 数据库名；dsn 为空时必填",
+      "type": "string",
+      "default": ""
+    },
+    "pool_size": {
+      "description": "数据库连接池允许的最大总连接数",
+      "type": "int",
+      "default": 10
+    },
+    "pool_min_size": {
+      "description": "数据库连接池保持的基础连接数",
+      "type": "int",
+      "default": 2
+    },
+    "echo": {
+      "description": "输出 SQLAlchemy SQL 调试日志",
+      "type": "bool",
+      "default": false
+    }
     }
   },
   "WebUI_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用 WebUI 管理面板",
       "type": "bool",
@@ -95,11 +155,14 @@
     },
     "port": {
       "description": "WebUI 端口",
-      "type": "number",
+      "type": "int",
       "default": 7834
+    }
     }
   },
   "Model_Configuration": {
+    "type": "object",
+    "items": {
     "embedding_provider_id": {
       "description": "Embedding 模型 Provider ID（用于话题路由和记忆检索）",
       "type": "string",
@@ -117,11 +180,14 @@
     },
     "embedding_dim": {
       "description": "Embedding 向量维度（BGE-M3=1024, text-embedding-3-small=1536）",
-      "type": "number",
+      "type": "int",
       "default": 1024
+    }
     }
   },
   "Knowledge_Settings": {
+    "type": "object",
+    "items": {
     "engine": {
       "description": "知识引擎：off=关闭, lightrag=LightRAG 知识图谱",
       "type": "string",
@@ -136,26 +202,39 @@
     "query_mode": {
       "description": "LightRAG 查询模式",
       "type": "string",
-      "default": "hybrid",
-      "enum": ["naive", "local", "global", "hybrid"]
+      "default": "mix",
+      "enum": ["naive", "local", "global", "hybrid", "mix"]
+    },
+    "retrieval_only_query_preferred": {
+      "description": "优先使用纯检索上下文查询模式（若当前 LightRAG 版本支持）",
+      "type": "bool",
+      "default": true
     },
     "min_ingestion_length": {
       "description": "知识入库最小消息长度（低于此值不入库）",
-      "type": "number",
+      "type": "int",
       "default": 15
     },
     "ingestion_buffer_max": {
       "description": "知识入库缓冲区最大消息数",
-      "type": "number",
+      "type": "int",
       "default": 10
     },
     "ingestion_cooldown": {
       "description": "批量入库冷却秒数",
-      "type": "number",
+      "type": "int",
       "default": 60
+    },
+    "warmup_active_groups_limit": {
+      "description": "启动时预热 LightRAG 实例的活跃群组上限",
+      "type": "int",
+      "default": 100
+    }
     }
   },
   "Rerank_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用 Reranker 重排序（需要配置 Rerank Provider）",
       "type": "bool",
@@ -168,11 +247,14 @@
     },
     "top_k": {
       "description": "Rerank 后保留的 Top K 结果数",
-      "type": "number",
+      "type": "int",
       "default": 5
+    }
     }
   },
   "Cache_Settings": {
+    "type": "object",
+    "items": {
     "enabled": {
       "description": "启用缓存管理器（减少重复 API 调用）",
       "type": "bool",
@@ -180,13 +262,94 @@
     },
     "context_ttl": {
       "description": "上下文检索缓存 TTL（秒）",
-      "type": "number",
+      "type": "int",
       "default": 300
     },
     "embedding_ttl": {
       "description": "Embedding 查询缓存 TTL（秒）",
-      "type": "number",
+      "type": "int",
       "default": 600
+    }
+    }
+  },
+  "PersonaBinding_Settings": {
+    "type": "object",
+    "items": {
+    "enabled": {
+      "description": "启用独立人格绑定与语气学习功能",
+      "type": "bool",
+      "default": true
+    },
+    "auto_learning_enabled": {
+      "description": "启用后台自动语气学习（消息积累达阈值后自动触发）",
+      "type": "bool",
+      "default": true
+    },
+    "auto_apply_learned_tone": {
+      "description": "自动将新学习的语气版本设为活跃版本（关闭则需手动切换）",
+      "type": "bool",
+      "default": true
+    },
+    "tone_learning_threshold": {
+      "description": "触发语气学习的消息累积阈值",
+      "type": "int",
+      "default": 100
+    },
+    "global_learning_cron": {
+      "description": "定时集中学习的 cron 表达式",
+      "type": "string",
+      "default": "0 3 * * *"
+    },
+    "max_tone_history_versions": {
+      "description": "每个群最多保留的语气历史版本数量",
+      "type": "int",
+      "default": 10
+    }
+    }
+  },
+  "ReviewGate_Settings": {
+    "type": "object",
+    "items": {
+    "enabled_for_group_persona": {
+      "description": "群画像学习结果进入生效前需要审核",
+      "type": "bool",
+      "default": false
+    },
+    "enabled_for_tone": {
+      "description": "语气学习结果自动生效前需要审核",
+      "type": "bool",
+      "default": false
+    },
+    "require_admin_review": {
+      "description": "审核操作仅允许管理员执行",
+      "type": "bool",
+      "default": true
+    },
+    "auto_approve_minor_diff": {
+      "description": "小改动可自动通过审核（首版建议关闭）",
+      "type": "bool",
+      "default": false
+    },
+    "minor_diff_threshold_percent": {
+      "description": "小改动自动通过的阈值百分比",
+      "type": "float",
+      "default": 5.0
+    },
+    "max_pending_per_group": {
+      "description": "每个群每类提示词最多保留的待审核记录数",
+      "type": "int",
+      "default": 1
+    },
+    "retention_days_pending": {
+      "description": "待审核记录保留天数",
+      "type": "int",
+      "default": 7
+    },
+    "retention_days_rejected": {
+      "description": "已拒绝/已废弃记录保留天数",
+      "type": "int",
+      "default": 30
+    }
     }
   }
 }

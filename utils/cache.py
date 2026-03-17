@@ -24,14 +24,52 @@ except ImportError:
     Cache = dict  # type: ignore
 
     class TTLCache(dict):  # type: ignore
+        """Fallback TTL cache (no real TTL, but enforces maxsize)."""
         def __init__(self, maxsize=128, ttl=300):
             super().__init__()
             self.maxsize = maxsize
 
+        def __setitem__(self, key, value):
+            # Evict oldest entries if at capacity
+            while len(self) >= self.maxsize:
+                try:
+                    oldest_key = next(iter(self))
+                    del self[oldest_key]
+                except (StopIteration, KeyError):
+                    break
+            super().__setitem__(key, value)
+
     class LRUCache(dict):  # type: ignore
+        """Fallback LRU cache (approximate LRU via insertion order)."""
         def __init__(self, maxsize=128):
             super().__init__()
             self.maxsize = maxsize
+
+        def __setitem__(self, key, value):
+            # If key exists, remove to re-insert at end
+            if key in self:
+                del self[key]
+            # Evict oldest if at capacity
+            while len(self) >= self.maxsize:
+                try:
+                    oldest_key = next(iter(self))
+                    del self[oldest_key]
+                except (StopIteration, KeyError):
+                    break
+            super().__setitem__(key, value)
+
+        def __getitem__(self, key):
+            # Move to end on access (approximate LRU)
+            value = super().__getitem__(key)
+            del self[key]
+            super().__setitem__(key, value)
+            return value
+
+        def get(self, key, default=None):
+            try:
+                return self.__getitem__(key)
+            except KeyError:
+                return default
 
 
 class CacheManager:

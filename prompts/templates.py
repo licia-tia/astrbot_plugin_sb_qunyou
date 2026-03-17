@@ -114,3 +114,31 @@ INJECTION_USER_MEMORIES = """<user_memories user="{user_id}" trust="medium">
 INJECTION_JARGON = """<jargon_hints trust="low">
 {hints}
 </jargon_hints>"""
+
+# -----------------------------------------------------------------------
+# 语气学习 (独立人格绑定链路)
+# -----------------------------------------------------------------------
+
+TONE_LEARNING_PROMPT = """你是一位语言风格分析专家。请根据以下群聊消息记录，分析并总结群成员的说话风格和语气特征。
+
+{current_tone_section}
+
+要求：
+1. 提炼出群内最具代表性的语气特征（如口头禅、常用句式、表达习惯）
+2. 描述整体的说话风格（正式/口语化/调侃/热情等）
+3. 如果有现有语气描述，请在其基础上进行迭代和演化，保留核心特征，融入新的观察
+4. 输出一段连贯的语气描述文本，不超过 300 字
+5. 不要包含个人隐私信息
+
+消息记录：
+{messages}
+
+请输出语气风格描述："""
+
+INJECTION_PERSONA_BINDING = """<persona_binding>
+{persona_prompt}
+</persona_binding>
+
+<learned_tone>
+{tone}
+</learned_tone>"""
