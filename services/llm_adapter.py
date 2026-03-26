@@ -29,12 +29,27 @@ class LLMAdapter:
     #  Internal: resolve provider by ID
     # ------------------------------------------------------------------ #
 
-    def _get_provider(self, provider_id: Optional[str]) -> Any:
+    @staticmethod
+    def _normalize_provider_id(provider_id: Optional[str]) -> Optional[str]:
+        if provider_id is None:
+            return None
+        normalized = provider_id.strip()
+        return normalized or None
+
+    def _get_provider(
+        self,
+        provider_id: Optional[str],
+        *,
+        allow_fallback: bool = True,
+    ) -> Any:
         """Resolve an AstrBot LLM provider by ID.
 
         Falls back to the first available provider if not specified.
         """
-        if not provider_id:
+        pid = self._normalize_provider_id(provider_id)
+        if not pid:
+            if not allow_fallback:
+                return None
             # attempt to find any available provider
             providers = getattr(self._ctx, "get_all_providers", None)
             if providers:
@@ -45,8 +60,27 @@ class LLMAdapter:
 
         get_fn = getattr(self._ctx, "get_provider_by_id", None)
         if get_fn:
-            return get_fn(provider_id)
+            return get_fn(pid)
         return None
+
+    async def _chat_with_configured_provider(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str,
+        provider_id: Optional[str],
+        provider_label: str,
+    ) -> str:
+        pid = self._normalize_provider_id(provider_id)
+        if pid is None:
+            logger.warning(f"[LLMAdapter] {provider_label} is not configured")
+            return ""
+        return await self.chat_completion(
+            prompt,
+            system_prompt=system_prompt,
+            provider_id=pid,
+            allow_fallback=False,
+        )
 
     # ------------------------------------------------------------------ #
     #  Chat completion
@@ -61,6 +95,7 @@ class LLMAdapter:
         max_tokens: int = 1024,
         temperature: float = 0.7,
         response_format: Optional[dict] = None,
+        allow_fallback: bool = True,
     ) -> str:
         """Send a chat completion request and return the assistant message.
 
@@ -71,12 +106,18 @@ class LLMAdapter:
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
             response_format: Optional response format (e.g. {"type": "json_object"}).
+            allow_fallback: If True, may fall back to the first available provider.
 
         Returns:
             The assistant response text, or "" on failure.
         """
-        pid = provider_id or self._config.fast_llm_provider_id
-        provider = self._get_provider(pid)
+        pid = self._normalize_provider_id(provider_id)
+        if pid is None:
+            pid = self._normalize_provider_id(self._config.fast_llm_provider_id)
+        provider = self._get_provider(
+            pid,
+            allow_fallback=allow_fallback and pid is None,
+        )
         if provider is None:
             logger.warning(f"[LLMAdapter] No provider available (requested: {pid})")
             return ""
@@ -121,19 +162,27 @@ class LLMAdapter:
             return ""
 
     async def fast_chat(self, prompt: str, system_prompt: str = "") -> str:
-        """Shortcut for fast/cheap model completion."""
-        return await self.chat_completion(
+        """Shortcut for fast/cheap model completion.
+
+        This path is strict: it only uses the configured fast provider.
+        """
+        return await self._chat_with_configured_provider(
             prompt,
             system_prompt=system_prompt,
             provider_id=self._config.fast_llm_provider_id,
+            provider_label="fast_llm_provider_id",
         )
 
     async def main_chat(self, prompt: str, system_prompt: str = "") -> str:
-        """Shortcut for main/powerful model completion."""
-        return await self.chat_completion(
+        """Shortcut for main/powerful model completion.
+
+        This path is strict: it only uses the configured main provider.
+        """
+        return await self._chat_with_configured_provider(
             prompt,
             system_prompt=system_prompt,
             provider_id=self._config.main_llm_provider_id,
+            provider_label="main_llm_provider_id",
         )
 
     # ------------------------------------------------------------------ #
@@ -145,8 +194,12 @@ class LLMAdapter:
 
         Returns None on failure.
         """
-        pid = self._config.embedding_provider_id
-        provider = self._get_provider(pid)
+        pid = self._normalize_provider_id(self._config.embedding_provider_id)
+        if pid is None:
+            logger.warning("[LLMAdapter] embedding_provider_id is not configured")
+            return None
+
+        provider = self._get_provider(pid, allow_fallback=False)
         if provider is None:
             logger.warning(f"[LLMAdapter] No embedding provider (requested: {pid})")
             return None

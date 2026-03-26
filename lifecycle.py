@@ -54,19 +54,19 @@ class Lifecycle:
         from .services.hook_handler import HookHandler
         from .services.persona_binding import PersonaBindingService
 
-        p.group_persona = GroupPersonaService(config, p.llm)
-        p.speaker_memory = SpeakerMemoryService(config, p.llm)
-        p.emotion = EmotionEngine(config, p.llm)
-        p.jargon = JargonService(config, p.llm)
-        p.persona_binding = PersonaBindingService(config, p.llm)
+        p.group_persona = GroupPersonaService(config, p.llm, p)
+        p.speaker_memory = SpeakerMemoryService(config, p.llm, p)
+        p.emotion = EmotionEngine(config, p.llm, p)
+        p.jargon = JargonService(config, p.llm, p)
+        p.persona_binding = PersonaBindingService(config, p.llm, context, p)
         p.hook_handler = HookHandler(config, p)
 
         # Pipeline
         from .pipeline.debounce import DebounceManager
         from .pipeline.topic_router import TopicThreadRouter
 
-        p.debounce = DebounceManager(config.debounce, llm=p.llm)
-        p.topic_router = TopicThreadRouter(config.topic, p.llm)
+        p.debounce = DebounceManager(config.debounce, llm=p.llm, plugin=p)
+        p.topic_router = TopicThreadRouter(config.topic, p.llm, p)
 
         logger.info("[Lifecycle] Bootstrap complete — all services created")
 
@@ -92,13 +92,24 @@ class Lifecycle:
             except Exception as e:
                 logger.error(f"[Lifecycle] Database start failed: {e}", exc_info=True)
 
-        # 2. Reranker (lazy-init, Issue #78)
+        # 2. Prompt Service + seed
+        from .services.prompt_service import PromptService
+        from .pipeline.context_builder import ContextBuilder
+        p.prompt_service = PromptService(self._db)
+        try:
+            await p.prompt_service.ensure_seeded()
+            logger.info("[Lifecycle] Prompt service seeded")
+        except Exception as e:
+            logger.warning(f"[Lifecycle] Prompt seed failed (table may already exist): {e}")
+        p.context_builder = ContextBuilder(p.prompt_service)
+
+        # 3. Reranker (lazy-init, Issue #78)
         self._init_reranker(config, p)
 
-        # 3. LightRAG Knowledge Engine (lazy-init)
+        # 4. LightRAG Knowledge Engine (lazy-init)
         self._init_knowledge(config, p)
 
-        # 3.5 Warmup LightRAG for recently active groups
+        # 4.5 Warmup LightRAG for recently active groups
         if getattr(p, 'knowledge', None) and self._db:
             try:
                 async with self._db.session() as session:
@@ -116,7 +127,7 @@ class Lifecycle:
             except Exception as e:
                 logger.debug(f"[Lifecycle] LightRAG warmup failed: {e}")
 
-        # 4. Background retry if providers not yet available
+        # 5. Background retry if providers not yet available
         if not getattr(p, 'reranker', None) or (
             config.knowledge.engine == 'lightrag'
             and not getattr(p, 'knowledge', None)
@@ -127,7 +138,8 @@ class Lifecycle:
             p.background_tasks.add(task)
             task.add_done_callback(p.background_tasks.discard)
 
-        # 5. WebUI
+        # 6. WebUI
+        print(f"[Qunyou] WebUI enabled={config.webui.enabled}, host={config.webui.host}, port={config.webui.port}")
         if config.webui.enabled:
             await self._start_webui(config)
 
@@ -210,9 +222,14 @@ class Lifecycle:
             from .webui.api import create_api, HAS_FASTAPI
             if not HAS_FASTAPI:
                 logger.warning("[Lifecycle] FastAPI not installed, WebUI disabled")
+                print("[Qunyou] WebUI disabled: fastapi not installed (pip install fastapi uvicorn)")
                 return
 
-            app = create_api(lambda: self._db, config=config.webui)
+            app = create_api(
+                lambda: self._db,
+                config=config.webui,
+                plugin_getter=lambda: self._plugin,
+            )
 
             # Serve static frontend
             from fastapi.staticfiles import StaticFiles
@@ -238,8 +255,10 @@ class Lifecycle:
                 f"[Lifecycle] WebUI started at "
                 f"http://{config.webui.host}:{config.webui.port}"
             )
+            print(f"[Qunyou] WebUI → http://{config.webui.host}:{config.webui.port}")
         except Exception as e:
             logger.error(f"[Lifecycle] WebUI start failed: {e}", exc_info=True)
+            print(f"[Qunyou] WebUI start failed: {e}")
 
     # ------------------------------------------------------------------ #
     #  Phase 3: ordered shutdown
@@ -265,6 +284,7 @@ class Lifecycle:
         if self._webui_server:
             try:
                 self._webui_server.should_exit = True
+                await self._webui_server.shutdown()
                 logger.info("[Lifecycle] WebUI stopped")
             except Exception as e:
                 logger.error(f"[Lifecycle] WebUI stop error: {e}")

@@ -10,12 +10,13 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import Any as _Any, TYPE_CHECKING
+
+Any = _Any  # noqa: A001
 
 from astrbot.api import logger
 
 from ..config import PluginConfig
-from ..prompts.templates import MEMORY_EXTRACT
 from ..constants import MEMORY_MAX_FACTS_PER_MESSAGE, MEMORY_TOP_K
 
 if TYPE_CHECKING:
@@ -26,9 +27,11 @@ if TYPE_CHECKING:
 class SpeakerMemoryService:
     """Manages per-user memories using pgvector for retrieval."""
 
-    def __init__(self, config: PluginConfig, llm: "LLMAdapter") -> None:
+    def __init__(self, config: PluginConfig, llm: "LLMAdapter", plugin: Any = None) -> None:
         self._config = config
         self._llm = llm
+        self._plugin = plugin
+        self._prompts: Any = None  # lazy
 
     async def extract_and_store(
         self,
@@ -50,7 +53,12 @@ class SpeakerMemoryService:
             # 1. LLM extract facts
             # Truncate to prevent prompt injection via extremely long messages
             message_truncated = message[:2000] if len(message) > 2000 else message
-            prompt = MEMORY_EXTRACT.format(
+            if self._prompts is None:
+                self._prompts = getattr(self._plugin, "prompt_service", None)
+            if not self._prompts:
+                return
+            template = await self._prompts.get_prompt("MEMORY_EXTRACT")
+            prompt = template.format(
                 sender_name=(sender_name or user_id)[:50],
                 message=message_truncated,
             )

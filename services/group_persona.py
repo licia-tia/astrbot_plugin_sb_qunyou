@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
-from typing import TYPE_CHECKING
+from typing import Any as _Any, TYPE_CHECKING
+
+Any = _Any  # noqa: A001
 
 from astrbot.api import logger
 
 from ..config import PluginConfig
-from ..prompts.templates import GROUP_PERSONA_LEARN
 
 if TYPE_CHECKING:
     from ..services.llm_adapter import LLMAdapter
@@ -29,10 +30,12 @@ if TYPE_CHECKING:
 class GroupPersonaService:
     """Manages per-group persona profiles."""
 
-    def __init__(self, config: PluginConfig, llm: "LLMAdapter") -> None:
+    def __init__(self, config: PluginConfig, llm: "LLMAdapter", plugin: Any = None) -> None:
         self._config = config.group_persona
         self._global_config = config
         self._llm = llm
+        self._plugin = plugin
+        self._prompts: Any = None  # lazy
 
     async def get_group_prompt(self, group_id: str, db: "Database") -> str:
         """Return the combined prompt for a group (base + learned)."""
@@ -107,7 +110,20 @@ class GroupPersonaService:
                 messages_text = "\n".join(msg_lines[-100:])  # cap at 100 lines
 
             # 4. LLM summarize
-            prompt = GROUP_PERSONA_LEARN.format(messages=messages_text)
+            if self._prompts is None:
+                self._prompts = getattr(self._plugin, "prompt_service", None)
+            if not self._prompts:
+                try:
+                    async with db.session() as session:
+                        from ..db.repo import Repository
+                        repo = Repository(session)
+                        await repo.fail_learning_job(job_id, "prompt_service_unavailable")
+                        await session.commit()
+                except Exception:
+                    pass
+                return
+            template = await self._prompts.get_prompt("GROUP_PERSONA_LEARN")
+            prompt = template.format(messages=messages_text)
             summary = await self._llm.main_chat(prompt)
 
             if not summary or len(summary.strip()) < 10:

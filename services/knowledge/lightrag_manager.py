@@ -27,11 +27,41 @@ if TYPE_CHECKING:
 try:
     from lightrag import LightRAG as _LightRAG
     from lightrag import QueryParam
+    try:
+        from lightrag import EmbeddingFunc
+    except ImportError:
+        EmbeddingFunc = None
+    try:
+        from lightrag.utils import wrap_embedding_func_with_attrs
+    except ImportError:
+        wrap_embedding_func_with_attrs = None
     HAS_LIGHTRAG = True
 except ImportError:
     HAS_LIGHTRAG = False
     _LightRAG = None
     QueryParam = None
+    EmbeddingFunc = None
+    wrap_embedding_func_with_attrs = None
+
+
+class _CompatEmbeddingWrapper:
+    """Fallback wrapper matching the attrs LightRAG expects on embedding funcs."""
+
+    def __init__(
+        self,
+        *,
+        func: Any,
+        embedding_dim: int,
+        max_token_size: int,
+        model_name: str,
+    ) -> None:
+        self.func = func
+        self.embedding_dim = embedding_dim
+        self.max_token_size = max_token_size
+        self.model_name = model_name
+
+    async def __call__(self, texts: list[str]) -> Any:
+        return await self.func(texts)
 
 
 class LightRAGKnowledgeManager:
@@ -101,6 +131,154 @@ class LightRAGKnowledgeManager:
 
         return QueryParam(**kwargs)
 
+    @staticmethod
+    def _supports_parameter(callable_obj: Any, name: str) -> bool:
+        try:
+            sig = inspect.signature(callable_obj)
+        except (TypeError, ValueError):
+            return False
+        return name in sig.parameters
+
+    @staticmethod
+    def _flatten_history_messages(history_messages: Any) -> str:
+        if not history_messages:
+            return ""
+
+        lines: list[str] = []
+        for msg in history_messages:
+            if not isinstance(msg, dict):
+                lines.append(str(msg))
+                continue
+
+            role = str(msg.get("role", "user")).strip() or "user"
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                parts: list[str] = []
+                for item in content:
+                    if isinstance(item, dict):
+                        text = item.get("text")
+                        if text:
+                            parts.append(str(text))
+                    elif item:
+                        parts.append(str(item))
+                content_text = "\n".join(parts)
+            else:
+                content_text = str(content)
+
+            content_text = content_text.strip()
+            if content_text:
+                lines.append(f"[{role}] {content_text}")
+
+        return "\n".join(lines)
+
+    def _build_embedding_func(self) -> Any:
+        if self._llm is None:
+            return None
+
+        model_name = (
+            getattr(self._config, "embedding_provider_id", None)
+            or "astrbot-embedding"
+        )
+
+        async def _embedding_func(texts: list[str]) -> Any:
+            try:
+                import numpy as np
+            except ImportError:  # pragma: no cover - lightrag installs numpy
+                np = None
+
+            vectors = await asyncio.gather(
+                *(self._llm.get_embedding(text) for text in texts)
+            )
+            if any(vector is None for vector in vectors):
+                raise RuntimeError(
+                    "Embedding provider returned no vector for one or more texts"
+                )
+
+            if np is None:
+                return vectors
+            return np.asarray(vectors, dtype=float)
+
+        if wrap_embedding_func_with_attrs is not None:
+            wrapper_kwargs: dict[str, Any] = {
+                "embedding_dim": self._config.embedding_dim,
+                "max_token_size": 8192,
+            }
+            if self._supports_parameter(wrap_embedding_func_with_attrs, "model_name"):
+                wrapper_kwargs["model_name"] = model_name
+            elif self._supports_parameter(wrap_embedding_func_with_attrs, "model"):
+                wrapper_kwargs["model"] = model_name
+
+            return wrap_embedding_func_with_attrs(**wrapper_kwargs)(_embedding_func)
+
+        if EmbeddingFunc is not None:
+            embedding_kwargs: dict[str, Any] = {
+                "embedding_dim": self._config.embedding_dim,
+                "max_token_size": 8192,
+                "func": _embedding_func,
+            }
+            if self._supports_parameter(EmbeddingFunc, "model_name"):
+                embedding_kwargs["model_name"] = model_name
+            elif self._supports_parameter(EmbeddingFunc, "model"):
+                embedding_kwargs["model"] = model_name
+
+            return EmbeddingFunc(**embedding_kwargs)
+
+        return _CompatEmbeddingWrapper(
+            func=_embedding_func,
+            embedding_dim=self._config.embedding_dim,
+            max_token_size=8192,
+            model_name=model_name,
+        )
+
+    def _build_llm_model_func(self) -> Any:
+        if self._llm is None:
+            return None
+
+        async def _llm_model_func(
+            prompt: str,
+            system_prompt: str | None = None,
+            history_messages: list[dict[str, Any]] | None = None,
+            keyword_extraction: bool = False,
+            **kwargs: Any,
+        ) -> str:
+            history_text = self._flatten_history_messages(history_messages)
+            final_prompt = prompt
+            if history_text:
+                final_prompt = (
+                    "[History]\n"
+                    f"{history_text}\n\n"
+                    "[Current Task]\n"
+                    f"{prompt}"
+                )
+
+            provider_id = (
+                self._config.main_llm_provider_id
+                or self._config.fast_llm_provider_id
+            )
+            max_tokens = kwargs.get("max_tokens", 1024)
+            temperature = kwargs.get("temperature", 0.0 if keyword_extraction else 0.7)
+
+            return await self._llm.chat_completion(
+                final_prompt,
+                system_prompt=system_prompt or "",
+                provider_id=provider_id,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                allow_fallback=provider_id is None,
+            )
+
+        return _llm_model_func
+
+    async def _initialize_instance(self, instance: Any) -> None:
+        for method_name in ("initialize_storages", "initialize_pipeline_status"):
+            method = getattr(instance, method_name, None)
+            if method is None:
+                continue
+
+            maybe_coro = method()
+            if inspect.isawaitable(maybe_coro):
+                await maybe_coro
+
     async def _get_instance(self, group_id: str) -> Optional[Any]:
         """Get or create a LightRAG instance for a group."""
         if not HAS_LIGHTRAG:
@@ -127,8 +305,21 @@ class LightRAGKnowledgeManager:
             os.makedirs(working_dir, exist_ok=True)
 
             try:
-                # Create LightRAG instance with embedding via our LLM adapter
-                instance = _LightRAG(working_dir=working_dir)
+                embedding_func = self._build_embedding_func()
+                llm_model_func = self._build_llm_model_func()
+                if embedding_func is None:
+                    logger.error("[LightRAG] Instance creation failed: embedding adapter unavailable")
+                    return None
+                if llm_model_func is None:
+                    logger.error("[LightRAG] Instance creation failed: llm adapter unavailable")
+                    return None
+
+                instance = _LightRAG(
+                    working_dir=working_dir,
+                    embedding_func=embedding_func,
+                    llm_model_func=llm_model_func,
+                )
+                await self._initialize_instance(instance)
                 self._instances[group_id] = instance
                 logger.debug(f"[LightRAG] Instance created for {group_id}")
                 return instance

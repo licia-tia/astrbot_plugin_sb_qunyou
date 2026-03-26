@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import datetime as _dt
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
 from astrbot.api import logger
@@ -45,9 +45,11 @@ def _sliding_average(
 class TopicThreadRouter:
     """Routes messages to topic threads based on embedding similarity."""
 
-    def __init__(self, config: TopicConfig, llm: "LLMAdapter") -> None:
+    def __init__(self, config: TopicConfig, llm: "LLMAdapter", plugin: Any) -> None:
         self._config = config
         self._llm = llm
+        self._plugin = plugin
+        self._prompts: Any = None  # lazy, set on first use
 
     async def route_message(
         self,
@@ -165,9 +167,20 @@ class TopicThreadRouter:
                     name = m.sender_name or m.sender_id
                     lines.append(f"[{name}]: {m.text}")
 
-                from ..prompts.templates import THREAD_SUMMARY
-                prompt = THREAD_SUMMARY.format(messages="\n".join(lines))
-                summary = await self._llm.fast_chat(prompt)
+                if self._prompts is None:
+                    self._prompts = getattr(self._plugin, "prompt_service", None)
+                if not self._prompts:
+                    return
+                template = await self._prompts.get_prompt("THREAD_SUMMARY")
+                prompt = template.format(messages="\n".join(lines))
+                if self._config.fast_model_provider_id:
+                    summary = await self._llm.chat_completion(
+                        prompt,
+                        provider_id=self._config.fast_model_provider_id,
+                        allow_fallback=False,
+                    )
+                else:
+                    summary = await self._llm.fast_chat(prompt)
 
                 if summary and len(summary.strip()) > 2:
                     await repo.update_thread(

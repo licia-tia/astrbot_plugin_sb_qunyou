@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any as _Any, TYPE_CHECKING
+from typing import Dict, List, Optional
+
+Any = _Any  # noqa: A001
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
@@ -346,11 +349,13 @@ class DebounceManager:
       → reconstruct event with merged text → let it propagate
     """
 
-    def __init__(self, config: DebounceConfig, llm: Optional["LLMAdapter"] = None) -> None:
+    def __init__(self, config: DebounceConfig, llm: Optional["LLMAdapter"] = None, plugin: Any = None) -> None:
         self._config = config
         self._llm = llm
+        self._plugin = plugin
         self._sessions: Dict[str, DebounceSession] = {}
         self._parser = MessageParser()
+        self._prompts: Any = None  # lazy
 
     @property
     def _pending(self) -> Dict[str, DebounceSession]:
@@ -564,9 +569,14 @@ class DebounceManager:
         if not self._llm:
             return True  # No LLM available, assume complete
 
+        if self._prompts is None:
+            self._prompts = getattr(self._plugin, "prompt_service", None)
+        if not self._prompts:
+            return True  # No prompt service, assume complete
+
         try:
-            from ..prompts.templates import SEMANTIC_COMPLETENESS
-            prompt = SEMANTIC_COMPLETENESS.format(text=text)
+            template = await self._prompts.get_prompt("SEMANTIC_COMPLETENESS")
+            prompt = template.format(text=text)
             response = await self._llm.fast_chat(prompt)
             if response and "incomplete" in response.lower():
                 return False

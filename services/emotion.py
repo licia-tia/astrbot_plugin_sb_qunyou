@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import datetime as _dt
 import random
-from typing import Optional, TYPE_CHECKING
+from typing import Any as _Any, Optional, TYPE_CHECKING
+
+Any = _Any  # noqa: A001
 
 from astrbot.api import logger
 
 from ..config import PluginConfig
 from ..constants import MOODS
-from ..prompts.templates import EMOTION_ANALYZE
 
 if TYPE_CHECKING:
     from ..services.llm_adapter import LLMAdapter
@@ -28,9 +29,11 @@ if TYPE_CHECKING:
 class EmotionEngine:
     """Per-group emotion state machine."""
 
-    def __init__(self, config: PluginConfig, llm: "LLMAdapter") -> None:
+    def __init__(self, config: PluginConfig, llm: "LLMAdapter", plugin: Any = None) -> None:
         self._config = config.emotion
         self._llm = llm
+        self._plugin = plugin
+        self._prompts: Any = None  # lazy
 
     async def get_mood(self, group_id: str, db: "Database") -> str:
         """Get current mood for a group, applying natural decay if needed."""
@@ -87,7 +90,12 @@ class EmotionEngine:
 
         try:
             # LLM emotion analysis
-            prompt = EMOTION_ANALYZE.format(message=message[:1000])
+            if self._prompts is None:
+                self._prompts = getattr(self._plugin, "prompt_service", None)
+            if not self._prompts:
+                return None
+            template = await self._prompts.get_prompt("EMOTION_ANALYZE")
+            prompt = template.format(message=message[:1000])
             response = await self._llm.fast_chat(prompt)
 
             if not response:

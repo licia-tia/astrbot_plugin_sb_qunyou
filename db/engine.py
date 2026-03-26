@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy import text
 from astrbot.api import logger
 
 from ..config import DatabaseConfig
@@ -45,10 +46,14 @@ class Database:
 
         # Enable pgvector extension and create tables
         async with self.engine.begin() as conn:
-            await conn.execute(
-                __import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector")
-            )
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(
+                text(
+                    "ALTER TABLE group_persona_bindings "
+                    "ADD COLUMN IF NOT EXISTS base_persona_prompt TEXT NOT NULL DEFAULT ''"
+                )
+            )
 
         logger.info("[DB] PostgreSQL engine started, tables ensured")
 

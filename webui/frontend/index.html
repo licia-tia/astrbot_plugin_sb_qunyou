@@ -36,6 +36,49 @@ body {
   min-height: 100vh;
   display: flex;
 }
+/* ---- Login Overlay ---- */
+#login-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#login-overlay.hidden { display: none; }
+.login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.login-box h2 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.login-box p {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+.login-box input {
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.login-box .btn { width: 100%; margin-top: 8px; }
+.login-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 8px;
+  min-height: 18px;
+}
 /* ---- Sidebar ---- */
 .sidebar {
   width: 240px;
@@ -281,6 +324,218 @@ textarea { resize: vertical; min-height: 100px; }
   margin-top: 24px;
 }
 
+/* ---- Group Profiles ---- */
+.group-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.25fr);
+  gap: 18px;
+  align-items: start;
+}
+.group-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle at top right, rgba(129, 140, 248, 0.14), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+.group-list-toolbar h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.group-list-toolbar p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 360px;
+}
+.group-filter-box {
+  min-width: 220px;
+  max-width: 280px;
+  margin-bottom: 0;
+}
+.group-table-row.is-active td {
+  background: rgba(99, 102, 241, 0.12);
+}
+.group-status-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.group-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.group-status-pill.is-ready {
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--success);
+}
+.group-status-pill.is-empty {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--danger);
+}
+.group-workspace {
+  min-height: 680px;
+}
+.group-workspace-empty {
+  min-height: 680px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px;
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(52, 211, 153, 0.1), transparent 30%);
+}
+.group-workspace-empty h3 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.group-workspace-empty p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 380px;
+}
+.group-workspace-shell {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.group-workspace-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.group-workspace-kicker {
+  font-size: 11px;
+  color: var(--accent-secondary);
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.group-workspace-header h3 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.group-workspace-header p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 520px;
+}
+.group-workspace-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.group-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.group-meta-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.group-meta-card .label {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.group-meta-card .value {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+.group-meta-card .subvalue {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.group-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 16px;
+}
+.group-surface {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.group-surface-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.group-surface-header h4 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.group-surface-header p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.group-surface textarea {
+  min-height: 250px;
+}
+.group-surface textarea[readonly] {
+  background: rgba(15, 17, 23, 0.72);
+  cursor: default;
+}
+.group-editor-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.group-guidance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.group-guidance-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.group-combined-preview {
+  min-height: 170px;
+  white-space: pre-wrap;
+  line-height: 1.75;
+  background: rgba(15, 17, 23, 0.72);
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 /* ---- Sections ---- */
 .section { display: none; }
 .section.active { display: block; }
@@ -304,9 +559,69 @@ textarea { resize: vertical; min-height: 100px; }
   .main { margin-left: 60px; padding: 16px; }
   .card-grid { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 1180px) {
+  .group-profile-layout,
+  .group-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .group-list-toolbar,
+  .group-workspace-header {
+    flex-direction: column;
+  }
+  .group-filter-box {
+    min-width: 100%;
+    max-width: none;
+  }
+  .group-meta-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+  /* ---- Toggle switch ---- */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    transition: 0.3s;
+  }
+  .toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent-primary); border-color: var(--accent-primary); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); background: white; }
 </style>
 </head>
 <body>
+
+<!-- Login Overlay -->
+<div id="login-overlay">
+  <div class="login-box">
+    <h2>群聊智能体管理面板</h2>
+    <p>请在群聊中发送 <strong>/sbqunyou-getwebtoken</strong> 获取 WebToken（10分钟有效）</p>
+    <input type="text" id="login-token" placeholder="请输入 WebToken" autocomplete="off">
+    <button class="btn btn-primary" onclick="doLogin()">登录</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -320,7 +635,7 @@ textarea { resize: vertical; min-height: 100px; }
   </div>
   <div class="nav-item" data-section="groups">
     <span class="material-icons-round">group</span>
-    <span>群管理</span>
+    <span>群画像管理</span>
   </div>
   <div class="nav-item" data-section="jargon">
     <span class="material-icons-round">translate</span>
@@ -333,6 +648,24 @@ textarea { resize: vertical; min-height: 100px; }
   <div class="nav-item" data-section="threads">
     <span class="material-icons-round">forum</span>
     <span>话题监控</span>
+  </div>
+  <div class="nav-item" data-section="persona-binding">
+    <span class="material-icons-round">psychology</span>
+    <span>每群人格</span>
+  </div>
+  <div class="nav-item" data-section="learning-jobs">
+    <span class="material-icons-round">school</span>
+    <span>学习任务</span>
+  </div>
+  <div class="nav-item" data-section="prompts">
+    <span class="material-icons-round">edit_note</span>
+    <span>Prompt 管理</span>
+  </div>
+  <div style="margin-top:auto; padding: 0 8px;">
+    <div class="nav-item" onclick="doLogout()" style="color:var(--danger); cursor:pointer;">
+      <span class="material-icons-round">logout</span>
+      <span>退出登录</span>
+    </div>
   </div>
 </aside>
 
@@ -376,23 +709,68 @@ textarea { resize: vertical; min-height: 100px; }
 
   <!-- Groups -->
   <div class="section" id="sec-groups">
-    <div class="page-header">
-      <h2>群管理</h2>
-      <p>查看和编辑群画像</p>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div>
+        <h2>群画像管理</h2>
+        <p>维护每个群的基础画像，并在同一工作台查看学习画像、积累进度和当前沉淀结果</p>
+      </div>
+      <button class="btn" onclick="loadGroups()" style="color:var(--text-secondary)">
+        <span class="material-icons-round" style="font-size:16px">refresh</span>
+        刷新画像
+      </button>
     </div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>群 ID</th>
-            <th>基础画像</th>
-            <th>学习画像</th>
-            <th>消息计数</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="groups-tbody"></tbody>
-      </table>
+    <div class="card-grid" style="margin-bottom:18px;">
+      <div class="stat-card">
+        <div class="label">群组总数</div>
+        <div class="value" id="groups-total-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">已写基础画像</div>
+        <div class="value" id="groups-base-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">已有学习画像</div>
+        <div class="value" id="groups-learned-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">待学习消息</div>
+        <div class="value" id="groups-pending-count">0</div>
+      </div>
+    </div>
+    <div class="group-profile-layout">
+      <div class="table-container">
+        <div class="group-list-toolbar">
+          <div>
+            <h3>群画像列表</h3>
+            <p>先从左侧选择一个群，再在右侧工作台里编辑基础画像、对照学习画像，并确认当前的群画像沉淀状态。</p>
+          </div>
+          <div class="form-group group-filter-box">
+            <label>快速筛选</label>
+            <input id="groups-search" type="text" placeholder="输入群 ID 或画像关键词" oninput="applyGroupFilter()">
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>群 ID</th>
+              <th>状态</th>
+              <th>基础画像</th>
+              <th>学习画像</th>
+              <th>待学习消息</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="groups-tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-container group-workspace" id="group-workspace">
+        <div class="group-workspace-empty">
+          <div>
+            <h3>选择一个群开始编辑</h3>
+            <p>右侧会显示基础画像编辑区、学习画像预览，以及当前合成后的群画像视图，方便你一边修改一边比对。</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -466,24 +844,216 @@ textarea { resize: vertical; min-height: 100px; }
     </div>
   </div>
 
+  <!-- Persona Binding -->
+  <div class="section" id="sec-persona-binding">
+    <div class="page-header">
+      <h2>每群人格</h2>
+      <p>维护群级本地人格基线、AstrBot 绑定来源、学习版本与插槽替换状态</p>
+    </div>
+    <div class="table-container" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr>
+            <th>群 ID</th>
+            <th>AstrBot 人格</th>
+            <th>基础人格</th>
+            <th>学习状态</th>
+            <th>累计消息</th>
+            <th>当前生效</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="pb-tbody"></tbody>
+      </table>
+    </div>
+    <div class="table-container" id="pb-detail-panel" style="display:none;padding:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+        <div>
+          <h3 id="pb-detail-title" style="font-size:18px;margin-bottom:6px;">每群人格详情</h3>
+          <p style="color:var(--text-secondary);font-size:13px;">这里可以维护本地基础人格、导入 AstrBot 人格、触发学习并切换历史版本。</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="hidePbDetail()" style="color:var(--text-secondary)">收起</button>
+          <button class="btn btn-danger" onclick="deleteBinding()">删除绑定</button>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="stat-card">
+          <div class="label">AstrBot 绑定</div>
+          <div id="pb-detail-persona" style="font-size:18px;font-weight:600;color:var(--text-primary)">未绑定</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">当前生效来源</div>
+          <div id="pb-effective-source" style="font-size:18px;font-weight:600;color:var(--text-primary)">未配置</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">学习消息计数</div>
+          <div class="value" id="pb-detail-msg-count">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">自动学习</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <label class="toggle-switch">
+              <input id="pb-learning-toggle" type="checkbox" onchange="toggleLearning()">
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="color:var(--text-secondary);font-size:13px;">开启后按消息阈值自动生成新版本</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin:8px 0 20px;">
+        <div class="stat-card" style="padding:18px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>AstrBot 人格选择</label>
+            <select id="pb-bind-select" onchange="handlePersonaSelectionChange()">
+              <option value="">读取中...</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+            <button class="btn" onclick="refreshAstrBotPersonaCatalog(true)" style="color:var(--text-secondary)">刷新列表</button>
+            <button class="btn btn-primary" onclick="bindPersona()">保存绑定</button>
+            <button class="btn" onclick="unbindPersona()" style="color:var(--text-secondary)">解除绑定</button>
+            <button class="btn btn-primary" onclick="importBasePersona()">导入为基础人格</button>
+          </div>
+          <div class="form-group" style="margin:14px 0 0;">
+            <label>AstrBot 人格内容预览</label>
+            <textarea id="pb-bind-preview" readonly style="min-height:180px;background:var(--bg-secondary);cursor:not-allowed"></textarea>
+            <div id="pb-bind-preview-hint" style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+              这里展示从 AstrBot 人格中读取到、实际可供本插件使用的人格内容。
+            </div>
+          </div>
+          <div style="margin-top:14px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            导入操作会把当前绑定的 AstrBot prompt 抽取为插件侧基础人格；如果该 prompt 自己包含 &lt;qunyou_persona_slot&gt;，则优先导入其槽内内容。
+          </div>
+        </div>
+        <div class="stat-card" style="padding:18px;">
+          <div class="label">插槽诊断</div>
+          <div id="pb-slot-status" style="font-size:13px;line-height:1.7;color:var(--text-secondary)">尚未检查</div>
+          <div style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            这里展示的是最近一次进入 Hook 的原始 system_prompt 检查结果，用来确认宿主 prompt 模板是否仍然保留了替换插槽。
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:20px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>本地基础人格</label>
+          <textarea id="pb-base-persona" style="min-height:220px" placeholder="为这个群写一版基础人格。它会作为学习的初始基线，也可以直接成为当前生效人格。"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+            <button class="btn btn-primary" onclick="saveBasePersona()">保存基础人格</button>
+            <button class="btn" onclick="clearBasePersona()" style="color:var(--text-secondary)">清空</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>当前生效人格预览</label>
+          <textarea id="pb-effective-persona" readonly style="min-height:220px;background:var(--bg-secondary);cursor:not-allowed"></textarea>
+          <div id="pb-effective-hint" style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            当前会替换到 &lt;qunyou_persona_slot&gt; 的内容。
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+        <button class="btn btn-primary" onclick="triggerPersonaLearn()">立即生成新版本</button>
+        <button class="btn" onclick="refreshPersonaDetail()" style="color:var(--text-secondary)">刷新状态</button>
+        <button class="btn btn-danger" onclick="clearAllPersonaVersions()">清空所有版本</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>版本</th>
+              <th>创建时间</th>
+              <th>类型</th>
+              <th>状态</th>
+              <th>摘要</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="pb-versions-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Learning Jobs -->
+  <div class="section" id="sec-learning-jobs">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div>
+        <h2>学习任务</h2>
+        <p>查看群画像与每群人格学习的任务状态</p>
+      </div>
+      <button class="btn btn-primary" onclick="loadLearningJobs()">刷新</button>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div class="form-group" style="min-width:220px;max-width:300px;margin-bottom:0;">
+        <label>任务状态</label>
+        <select id="lj-status-filter" onchange="loadLearningJobs()">
+          <option value="">全部</option>
+          <option value="pending">进行中</option>
+          <option value="completed">已完成</option>
+          <option value="failed">失败</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:220px;max-width:300px;margin-bottom:0;">
+        <label>任务类型</label>
+        <select id="lj-type-filter" onchange="loadLearningJobs()">
+          <option value="">全部</option>
+          <option value="combined_learn">每群人格学习</option>
+          <option value="persona_learn">群画像学习</option>
+          <option value="jargon_infer">黑话推断</option>
+          <option value="tone_learn">旧版语气学习</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>任务 ID</th>
+            <th>群组</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="lj-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Prompts -->
+  <div class="section" id="sec-prompts">
+    <div class="page-header">
+      <h2>Prompt 管理</h2>
+      <p>编辑和重置系统 Prompt 模板</p>
+    </div>
+    <div class="form-group" style="max-width:300px;margin-bottom:16px;">
+      <label>按类别筛选</label>
+      <select id="prompt-category-select" onchange="loadPrompts()">
+        <option value="">全部</option>
+        <option value="learning">学习类</option>
+        <option value="injection">注入类</option>
+      </select>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>描述</th>
+            <th>类别</th>
+            <th>更新时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="prompts-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 <!-- Modals -->
-<div class="modal-overlay" id="group-modal">
-  <div class="modal">
-    <h3>编辑群画像</h3>
-    <input type="hidden" id="edit-group-id">
-    <div class="form-group">
-      <label>基础画像 (人工预设)</label>
-      <textarea id="edit-base-prompt" placeholder="例如：这是一个游戏讨论群，主要讨论原神相关内容..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('group-modal')" style="color:var(--text-secondary)">取消</button>
-      <button class="btn btn-primary" onclick="saveGroupProfile()">保存</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="jargon-modal">
   <div class="modal">
     <h3>新增自定义黑话</h3>
@@ -502,18 +1072,230 @@ textarea { resize: vertical; min-height: 100px; }
   </div>
 </div>
 
+<div class="modal-overlay" id="prompt-modal">
+  <div class="modal" style="width:640px;max-width:95vw;">
+    <h3 id="prompt-modal-title">编辑 Prompt</h3>
+    <input type="hidden" id="edit-prompt-key">
+    <div class="form-group">
+      <label>Key</label>
+      <input id="edit-prompt-key-display" readonly style="background:var(--bg-secondary);cursor:not-allowed">
+    </div>
+    <div class="form-group">
+      <label>描述</label>
+      <input id="edit-prompt-description" readonly style="background:var(--bg-secondary);cursor:not-allowed">
+    </div>
+    <div class="form-group">
+      <label>类别</label>
+      <input id="edit-prompt-category" readonly style="background:var(--bg-secondary);cursor:not-allowed">
+    </div>
+    <div class="form-group">
+      <label>Value（模板内容）</label>
+      <textarea id="edit-prompt-value" rows="12" style="min-height:200px;font-family:monospace;font-size:12px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="doResetPrompt()" id="btn-reset-prompt">重置为默认</button>
+      <button class="btn" onclick="closeModal('prompt-modal')" style="color:var(--text-secondary)">取消</button>
+      <button class="btn btn-primary" onclick="doSavePrompt()">保存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = window.location.origin;
 let allGroups = [];
+let groupProfiles = [];
+let groupProfileMap = new Map();
+let currentGroupProfileId = null;
+let groupEditorInitialValue = '';
+const SESSION_KEY = 'qunyou_session_token';
+let authRequestVersion = 0;
+
+function nextAuthRequestVersion() {
+  authRequestVersion += 1;
+  return authRequestVersion;
+}
+
+function isStaleAuthRequest(version) {
+  return version !== authRequestVersion;
+}
+
+// ---- Auth helpers ----
+function getStoredToken() {
+  return localStorage.getItem(SESSION_KEY) || '';
+}
+
+function setStoredToken(token) {
+  localStorage.setItem(SESSION_KEY, token);
+}
+
+function clearStoredToken() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+// ---- API helper (injects bearer token) ----
+async function api(path, opts = {}) {
+  const token = getStoredToken();
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const res = await fetch(API + path, { ...opts, headers });
+    if (res.status === 401) {
+      clearStoredToken();
+      showLogin();
+      throw new Error('Unauthorized');
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    console.error('API error:', e);
+    return null;
+  }
+}
+
+// ---- Login / Logout ----
+function showLogin() {
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-token').value = '';
+}
+
+function hideLogin() {
+  document.getElementById('login-overlay').classList.add('hidden');
+}
+
+async function doLogin() {
+  const token = document.getElementById('login-token').value.trim();
+  if (!token) return;
+  const authVersion = nextAuthRequestVersion();
+  document.getElementById('login-error').textContent = '兑换中...';
+  try {
+    const res = await fetch(API + '/api/auth/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+    if (isStaleAuthRequest(authVersion)) return;
+
+    if (res.ok) {
+      const data = await res.json();
+      if (isStaleAuthRequest(authVersion)) return;
+      setStoredToken(data.session_token);
+      document.getElementById('login-error').textContent = '';
+      hideLogin();
+      initApp({ reuseCurrentVersion: true });
+      return;
+    }
+
+    const legacyRes = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+    if (isStaleAuthRequest(authVersion)) return;
+
+    if (legacyRes.ok) {
+      const legacyData = await legacyRes.json();
+      if (isStaleAuthRequest(authVersion)) return;
+      if (legacyData.logged_in) {
+        setStoredToken(token);
+        document.getElementById('login-error').textContent = '';
+        hideLogin();
+        initApp({ reuseCurrentVersion: true });
+        return;
+      }
+    }
+
+    let msg = '登录失败，请检查 Token 后重试';
+    try {
+      const e = await res.json();
+      if (e && e.error === 'invalid_or_expired_web_token') {
+        msg = '网页登录 Token 无效或已过期，请重新获取';
+      } else {
+        msg = e.error || msg;
+      }
+    } catch(_) {}
+
+    if (isStaleAuthRequest(authVersion)) return;
+    document.getElementById('login-error').textContent = msg;
+  } catch (e) {
+    if (isStaleAuthRequest(authVersion)) return;
+    console.error('Login error:', e);
+    document.getElementById('login-error').textContent = '登录失败，请检查网络后重试';
+  }
+}
+
+async function doLogout() {
+  const authVersion = nextAuthRequestVersion();
+  await fetch(API + '/api/auth/logout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + getStoredToken(),
+    },
+    body: JSON.stringify({ session_token: getStoredToken() }),
+  });
+  clearStoredToken();
+  if (isStaleAuthRequest(authVersion)) return;
+  initApp({ reuseCurrentVersion: true });
+}
+
+// Enter key on login input
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('login-token');
+  if (input) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  }
+});
+
+// ---- Init: check stored session_token ----
+async function initApp(options = {}) {
+  const authVersion = options.reuseCurrentVersion ? authRequestVersion : nextAuthRequestVersion();
+  const token = getStoredToken();
+  try {
+    const res = await fetch(API + '/api/auth/status', {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+    });
+
+    if (isStaleAuthRequest(authVersion)) return;
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (isStaleAuthRequest(authVersion)) return;
+      if (data && data.logged_in) {
+        hideLogin();
+        loadStats();
+        return;
+      }
+    }
+  } catch (e) {
+    if (isStaleAuthRequest(authVersion)) return;
+    console.error('Auth init error:', e);
+  }
+
+  if (isStaleAuthRequest(authVersion)) return;
+  if (token) {
+    clearStoredToken();
+  }
+  showLogin();
+}
+
+initApp();
 
 // ---- Navigation ----
-document.querySelectorAll('.nav-item').forEach(item => {
+document.querySelectorAll('.nav-item[data-section]').forEach(item => {
   item.addEventListener('click', () => {
+    const sectionName = item.dataset.section;
+    const section = document.getElementById('sec-' + sectionName);
+    if (!sectionName || !section) return;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     item.classList.add('active');
-    document.getElementById('sec-' + item.dataset.section).classList.add('active');
-    loadSection(item.dataset.section);
+    section.classList.add('active');
+    loadSection(sectionName);
   });
 });
 
@@ -524,21 +1306,9 @@ function loadSection(name) {
     case 'jargon': populateGroupSelects(); break;
     case 'emotion': loadEmotions(); break;
     case 'threads': populateGroupSelects(); break;
-  }
-}
-
-// ---- API helpers ----
-async function api(path, opts = {}) {
-  try {
-    const res = await fetch(API + path, {
-      headers: { 'Content-Type': 'application/json', ...opts.headers },
-      ...opts,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch(e) {
-    console.error('API error:', e);
-    return null;
+    case 'persona-binding': loadPersonaBindings(); break;
+    case 'learning-jobs': loadLearningJobs(); break;
+    case 'prompts': loadPrompts(); break;
   }
 }
 
@@ -554,42 +1324,271 @@ async function loadStats() {
 }
 
 // ---- Groups ----
-async function loadGroups() {
-  const groups = await api('/api/groups');
-  if (!groups) return;
-  allGroups = groups;
-  const tbody = document.getElementById('groups-tbody');
-  tbody.innerHTML = groups.map(g => `
-    <tr>
-      <td style="font-family:monospace;font-size:12px">${g.group_id}</td>
-      <td>${truncate(g.base_prompt, 40)}</td>
-      <td>${truncate(g.learned_prompt, 40)}</td>
-      <td>${g.message_count_since_learn}</td>
-      <td>
-        <button class="btn btn-primary btn-sm"
-          onclick="editGroup('${g.group_id}','${esc(g.base_prompt)}')">
-          编辑
-        </button>
-      </td>
-    </tr>
-  `).join('');
+function formatDateTime(value) {
+  if (!value) return '未记录';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('zh-CN', { hour12: false });
 }
 
-function editGroup(gid, basePrompt) {
-  document.getElementById('edit-group-id').value = gid;
-  document.getElementById('edit-base-prompt').value = basePrompt;
-  document.getElementById('group-modal').classList.add('open');
+function buildGroupStatusBadges(profile) {
+  const baseReady = Boolean((profile.base_prompt || '').trim());
+  const learnedReady = Boolean((profile.learned_prompt || '').trim());
+  return `
+    <div class="group-status-stack">
+      <span class="group-status-pill ${baseReady ? 'is-ready' : 'is-empty'}">${baseReady ? '基础已写' : '基础未写'}</span>
+      <span class="group-status-pill ${learnedReady ? 'is-ready' : 'is-empty'}">${learnedReady ? '学习已生成' : '学习未生成'}</span>
+    </div>
+  `;
+}
+
+function updateGroupSummaryCards(groups) {
+  const totalCount = groups.length;
+  const baseCount = groups.filter(g => (g.base_prompt || '').trim()).length;
+  const learnedCount = groups.filter(g => (g.learned_prompt || '').trim()).length;
+  const pendingCount = groups.reduce((sum, g) => sum + Number(g.message_count_since_learn || 0), 0);
+
+  document.getElementById('groups-total-count').textContent = totalCount;
+  document.getElementById('groups-base-count').textContent = baseCount;
+  document.getElementById('groups-learned-count').textContent = learnedCount;
+  document.getElementById('groups-pending-count').textContent = pendingCount;
+}
+
+function renderGroupWorkspace(profile) {
+  const workspace = document.getElementById('group-workspace');
+  if (!workspace) return;
+
+  if (!profile) {
+    workspace.innerHTML = `
+      <div class="group-workspace-empty">
+        <div>
+          <h3>选择一个群开始编辑</h3>
+          <p>右侧会显示基础画像编辑区、学习画像预览，以及当前合成后的群画像视图，方便你一边修改一边比对。</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  workspace.innerHTML = `
+    <div class="group-workspace-shell">
+      <div class="group-workspace-header">
+        <div>
+          <div class="group-workspace-kicker">群画像工作台</div>
+          <h3>${escapeHtml(profile.group_id)}</h3>
+          <p>基础画像负责定义稳定、长期有效的群定位；学习画像是系统根据近期消息总结出的阶段性观察。你可以在这里同时编辑和比对两者。</p>
+        </div>
+        <div class="group-workspace-actions">
+          <button class="btn" onclick="resetGroupProfileEditor()" style="color:var(--text-secondary)">恢复上次保存</button>
+          <button class="btn btn-primary" onclick="saveGroupProfile()">保存基础画像</button>
+        </div>
+      </div>
+
+      <div class="group-meta-grid">
+        <div class="group-meta-card">
+          <div class="label">画像状态</div>
+          <div class="subvalue">${buildGroupStatusBadges(profile)}</div>
+        </div>
+        <div class="group-meta-card">
+          <div class="label">待学习消息</div>
+          <div class="value">${Number(profile.message_count_since_learn || 0)}</div>
+          <div class="subvalue">累计到下一次群画像学习时会被消化的消息数量</div>
+        </div>
+        <div class="group-meta-card">
+          <div class="label">最近更新</div>
+          <div class="subvalue" style="color:var(--text-primary);font-size:15px;font-weight:600;">${escapeHtml(formatDateTime(profile.updated_at))}</div>
+          <div class="subvalue">更新时间来自群画像配置行的最近写入时间</div>
+        </div>
+        <div class="group-meta-card">
+          <div class="label">当前概览</div>
+          <div class="subvalue">${(profile.base_prompt || '').trim() ? '已有人工基础画像，可作为稳定基线。' : '还没有人工基础画像，建议先补一版稳定描述。'} ${(profile.learned_prompt || '').trim() ? '系统也已经沉淀出学习画像。' : '系统暂未生成学习画像。'}</div>
+        </div>
+      </div>
+
+      <div class="group-editor-grid">
+        <div class="group-surface">
+          <div class="group-surface-header">
+            <div>
+              <h4>人工基础画像</h4>
+              <p>建议写稳定、长期有效的群定位，不要写临时梗。可以包含核心话题、交流节奏、常见兴趣点和互动边界。</p>
+            </div>
+          </div>
+          <textarea id="edit-base-prompt" placeholder="例如：这是一个偏游戏讨论的群，日常以版本内容、阵容搭配和活动资讯为主，整体语气轻松，默认用熟络但不过分夸张的方式回应。"></textarea>
+          <div class="group-editor-footer">
+            <span id="group-editor-status">与已保存内容一致</span>
+            <span id="group-base-length">0 字</span>
+          </div>
+          <div class="group-guidance">
+            <span class="group-guidance-chip">群定位</span>
+            <span class="group-guidance-chip">常聊话题</span>
+            <span class="group-guidance-chip">交流节奏</span>
+            <span class="group-guidance-chip">互动边界</span>
+          </div>
+        </div>
+
+        <div class="group-surface">
+          <div class="group-surface-header">
+            <div>
+              <h4>学习画像预览</h4>
+              <p>这是系统基于近期消息自动沉淀的结果，用来帮助你判断当前群氛围和人工基础画像之间是否一致。</p>
+            </div>
+          </div>
+          <textarea id="group-learned-preview" readonly></textarea>
+          <div class="group-editor-footer">
+            <span>系统最近一次沉淀结果</span>
+            <span>${escapeHtml(formatDateTime(profile.updated_at))}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="group-surface">
+        <div class="group-surface-header">
+          <div>
+            <h4>当前合成视图</h4>
+            <p>这里把人工基础画像和学习画像放在一起，方便你判断这两部分是否互补、是否有冲突或重复描述。</p>
+          </div>
+        </div>
+        <div class="group-combined-preview" id="group-combined-preview"></div>
+      </div>
+    </div>
+  `;
+
+  groupEditorInitialValue = profile.base_prompt || '';
+  const baseInput = document.getElementById('edit-base-prompt');
+  const learnedPreview = document.getElementById('group-learned-preview');
+  if (baseInput) {
+    baseInput.value = profile.base_prompt || '';
+    baseInput.addEventListener('input', syncGroupProfileEditor);
+  }
+  if (learnedPreview) {
+    learnedPreview.value = (profile.learned_prompt || '').trim() || '系统还没有产出学习画像。';
+  }
+  syncGroupProfileEditor();
+}
+
+function renderGroupsTable() {
+  const tbody = document.getElementById('groups-tbody');
+  if (!tbody) return;
+
+  const keyword = (document.getElementById('groups-search')?.value || '').trim().toLowerCase();
+  const filteredGroups = groupProfiles.filter(g => {
+    if (!keyword) return true;
+    return [
+      g.group_id,
+      g.base_prompt,
+      g.learned_prompt,
+    ].some(value => String(value || '').toLowerCase().includes(keyword));
+  });
+
+  if (!filteredGroups.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">没有匹配到群画像记录</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredGroups.map(g => {
+    const isActive = g.group_id === currentGroupProfileId;
+    return `
+      <tr class="group-table-row${isActive ? ' is-active' : ''}">
+        <td>
+          <div style="font-family:monospace;font-size:12px;color:var(--text-primary)">${escapeHtml(g.group_id)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escapeHtml(formatDateTime(g.updated_at))}</div>
+        </td>
+        <td>${buildGroupStatusBadges(g)}</td>
+        <td>${truncate(g.base_prompt, 56)}</td>
+        <td>${truncate(g.learned_prompt, 56)}</td>
+        <td>${Number(g.message_count_since_learn || 0)}</td>
+        <td>
+          <button class="btn btn-primary btn-sm"
+            data-group-id="${encodeDataValue(g.group_id)}"
+            onclick="selectGroupProfile(decodeURIComponent(this.dataset.groupId))">
+            ${isActive ? '查看中' : '进入工作台'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function applyGroupFilter() {
+  renderGroupsTable();
+}
+
+function hasUnsavedGroupChanges() {
+  const input = document.getElementById('edit-base-prompt');
+  if (!input) return false;
+  return input.value !== groupEditorInitialValue;
+}
+
+function selectGroupProfile(groupId) {
+  if (
+    currentGroupProfileId &&
+    currentGroupProfileId !== groupId &&
+    hasUnsavedGroupChanges() &&
+    !confirm('当前基础画像有未保存修改，切换群组后这些修改会丢失。确认继续吗？')
+  ) {
+    return;
+  }
+  currentGroupProfileId = groupId;
+  renderGroupsTable();
+  renderGroupWorkspace(groupProfileMap.get(groupId) || null);
+}
+
+function resetGroupProfileEditor() {
+  const input = document.getElementById('edit-base-prompt');
+  if (!input) return;
+  input.value = groupEditorInitialValue;
+  syncGroupProfileEditor();
+}
+
+function syncGroupProfileEditor() {
+  const input = document.getElementById('edit-base-prompt');
+  const status = document.getElementById('group-editor-status');
+  const length = document.getElementById('group-base-length');
+  const combined = document.getElementById('group-combined-preview');
+  const profile = currentGroupProfileId ? groupProfileMap.get(currentGroupProfileId) : null;
+  if (!input || !status || !length || !combined || !profile) return;
+
+  const currentValue = input.value || '';
+  const isDirty = currentValue !== groupEditorInitialValue;
+  status.textContent = isDirty ? '有未保存修改' : '与已保存内容一致';
+  status.style.color = isDirty ? 'var(--warning)' : 'var(--text-muted)';
+  length.textContent = `${currentValue.length} 字`;
+
+  const parts = [];
+  if (currentValue.trim()) {
+    parts.push(`【基础画像】\n${currentValue.trim()}`);
+  }
+  if ((profile.learned_prompt || '').trim()) {
+    parts.push(`【学习画像】\n${profile.learned_prompt.trim()}`);
+  }
+  combined.textContent = parts.length ? parts.join('\n\n') : '当前还没有基础画像或学习画像。';
+}
+
+async function loadGroups(options = {}) {
+  const groups = await api('/api/groups');
+  if (!groups) return;
+
+  allGroups = groups;
+  groupProfiles = groups;
+  groupProfileMap = new Map(groups.map(g => [g.group_id, g]));
+
+  updateGroupSummaryCards(groups);
+
+  const requestedGroupId = options.focusGroupId || currentGroupProfileId || (groups[0] && groups[0].group_id) || null;
+  currentGroupProfileId = requestedGroupId && groupProfileMap.has(requestedGroupId) ? requestedGroupId : null;
+
+  renderGroupsTable();
+  renderGroupWorkspace(currentGroupProfileId ? groupProfileMap.get(currentGroupProfileId) : null);
 }
 
 async function saveGroupProfile() {
-  const gid = document.getElementById('edit-group-id').value;
-  const basePrompt = document.getElementById('edit-base-prompt').value;
-  await api(`/api/groups/${gid}`, {
+  if (!currentGroupProfileId) return;
+  const basePrompt = document.getElementById('edit-base-prompt')?.value || '';
+  await api(`/api/groups/${currentGroupProfileId}`, {
     method: 'PUT',
     body: JSON.stringify({ base_prompt: basePrompt }),
   });
-  closeModal('group-modal');
-  loadGroups();
+  await loadGroups({ focusGroupId: currentGroupProfileId });
 }
 
 // ---- Jargon ----
@@ -617,7 +1616,8 @@ function populateGroupSelects() {
   });
   if (!allGroups.length) {
     api('/api/groups').then(groups => {
-      if (groups) { allGroups = groups; populateGroupSelects(); }
+      allGroups = groups || [];
+      if (allGroups.length) populateGroupSelects();
     });
   }
 }
@@ -630,12 +1630,12 @@ async function loadJargon() {
   const tbody = document.getElementById('jargon-tbody');
   tbody.innerHTML = terms.map(t => `
     <tr>
-      <td><strong>${t.term}</strong></td>
-      <td>${t.meaning || '<em style="color:var(--text-muted)">未推断</em>'}</td>
+      <td><strong>${escapeHtml(t.term)}</strong></td>
+      <td>${t.meaning ? escapeHtml(t.meaning) : '<em style="color:var(--text-muted)">未推断</em>'}</td>
       <td>${t.frequency}</td>
       <td><span class="badge ${t.is_custom ? 'badge-custom' : 'badge-auto'}">${t.is_custom ? '自定义' : '自动'}</span></td>
       <td>
-        <button class="btn btn-danger btn-sm" onclick="deleteJargon('${gid}', ${t.id})">删除</button>
+        <button class="btn btn-danger btn-sm" data-group-id="${encodeDataValue(gid)}" onclick="deleteJargon(decodeURIComponent(this.dataset.groupId), ${t.id})">删除</button>
       </td>
     </tr>
   `).join('');
@@ -682,13 +1682,14 @@ async function loadEmotions() {
   for (const g of allGroups) {
     const e = await api(`/api/groups/${g.group_id}/emotion`);
     if (!e) continue;
+    const moodClass = safeMoodClass(e.mood);
     grid.innerHTML += `
       <div class="stat-card">
-        <div class="label" style="margin-bottom:12px">${g.group_id}</div>
+        <div class="label" style="margin-bottom:12px">${escapeHtml(g.group_id)}</div>
         <div style="display:flex;align-items:center;gap:12px">
           <span style="font-size:36px">${MOOD_EMOJI[e.mood] || '😐'}</span>
           <div>
-            <span class="mood-badge mood-${e.mood}">${e.mood}</span>
+            <span class="mood-badge mood-${moodClass}">${escapeHtml(e.mood)}</span>
             <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
               V: ${e.valence.toFixed(2)} &nbsp; A: ${e.arousal.toFixed(2)}
             </div>
@@ -712,9 +1713,9 @@ async function loadThreads() {
   tbody.innerHTML = threads.map(t => `
     <tr>
       <td style="font-family:monospace">#${t.id}</td>
-      <td>${t.topic_summary || '<em style="color:var(--text-muted)">待生成</em>'}</td>
+      <td>${t.topic_summary ? escapeHtml(t.topic_summary) : '<em style="color:var(--text-muted)">待生成</em>'}</td>
       <td>${t.message_count}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${t.last_activity || '-'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${escapeHtml(t.last_activity || '-')}</td>
     </tr>
   `).join('');
 }
@@ -727,14 +1728,542 @@ function closeModal(id) {
 // ---- Helpers ----
 function truncate(s, n) {
   if (!s) return '<em style="color:var(--text-muted)">未设定</em>';
-  return s.length > n ? s.slice(0, n) + '…' : s;
+  const text = String(s);
+  const clipped = text.length > n ? text.slice(0, n) + '…' : text;
+  return escapeHtml(clipped);
+}
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function encodeDataValue(s) {
+  return escapeHtml(encodeURIComponent(String(s || '')));
 }
 function esc(s) {
   return (s || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
 }
+function safeMoodClass(mood) {
+  const normalized = String(mood || 'neutral').toLowerCase();
+  return normalized.replace(/[^a-z0-9_-]/g, '') || 'neutral';
+}
+function getPersonaSourceLabel(source, versionNum) {
+  if (source === 'active_version') {
+    return versionNum ? `学习版本 V${versionNum}` : '学习版本';
+  }
+  if (source === 'base_persona') return '本地基础人格';
+  if (source === 'astrbot_persona') return 'AstrBot 绑定人格';
+  return '未配置';
+}
+function renderPersonaSource(source, versionNum) {
+  if (!source) return '<em style="color:var(--text-muted)">未配置</em>';
+  const label = getPersonaSourceLabel(source, versionNum);
+  return `<span class="badge badge-custom">${escapeHtml(label)}</span>`;
+}
+function renderBooleanBadge(value, trueLabel = '是', falseLabel = '否') {
+  const style = value
+    ? 'background:rgba(52,211,153,0.15);color:var(--success)'
+    : 'background:rgba(248,113,113,0.15);color:var(--danger)';
+  return `<span class="badge" style="${style}">${value ? trueLabel : falseLabel}</span>`;
+}
+function renderSlotStatus(status) {
+  if (!status) return '尚未检查';
+  const boundSlot = status.bound_persona_has_persona_slot;
+  const runtimeSlotHtml = status.checked_at
+    ? renderBooleanBadge(Boolean(status.has_persona_slot), '存在', '缺失')
+    : '<span class="badge" style="background:rgba(251,191,36,0.15);color:var(--warning)">未检查</span>';
+  const boundSlotHtml = boundSlot === null || boundSlot === undefined
+    ? '<span class="badge" style="background:rgba(251,191,36,0.15);color:var(--warning)">未检查</span>'
+    : renderBooleanBadge(boundSlot, '有插槽', '无插槽');
+  return `
+    <div>原始 system_prompt 插槽: ${runtimeSlotHtml}</div>
+    <div>绑定人格可读取: ${renderBooleanBadge(status.bound_persona_prompt_available, '可读取', '不可读取')}</div>
+    <div>绑定人格自带插槽: ${boundSlotHtml}</div>
+    <div>最近检查: ${escapeHtml(status.checked_at || '-')}</div>
+    <div>原始 system_prompt 长度: ${Number(status.system_prompt_length || 0)}</div>
+  `;
+}
+
+// ---- Persona Binding ----
+let currentPbGroup = null;
+let astrbotPersonaCatalog = [];
+let astrbotPersonaMap = new Map();
+
+function getPersonaCatalogItem(personaId) {
+  return astrbotPersonaMap.get(personaId || '') || null;
+}
+
+function getPersonaCatalogLabel(personaId) {
+  if (!personaId) return '未绑定';
+  const persona = getPersonaCatalogItem(personaId);
+  if (!persona) return personaId;
+  if (!persona.display_name || persona.display_name === persona.persona_id) {
+    return persona.persona_id;
+  }
+  return `${persona.display_name} (${persona.persona_id})`;
+}
+
+function setPersonaCatalogOptions(selectedId = '') {
+  const select = document.getElementById('pb-bind-select');
+  if (!select) return;
+
+  const selected = selectedId || '';
+  const options = ['<option value="">不绑定 AstrBot 人格</option>'];
+  let hasSelected = !selected;
+
+  astrbotPersonaCatalog.forEach(persona => {
+    const selectedAttr = persona.persona_id === selected ? ' selected' : '';
+    if (selectedAttr) hasSelected = true;
+    options.push(`<option value="${escapeHtml(persona.persona_id)}"${selectedAttr}>${escapeHtml(getPersonaCatalogLabel(persona.persona_id))}</option>`);
+  });
+
+  if (selected && !hasSelected) {
+    options.push(`<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}（当前绑定，未在列表中找到）</option>`);
+  }
+
+  if (!astrbotPersonaCatalog.length) {
+    options.push('<option value="" disabled>未读取到 AstrBot 已配置人格</option>');
+  }
+
+  select.innerHTML = options.join('');
+  select.value = selected;
+}
+
+function renderPersonaCatalogPreview(personaId) {
+  const preview = document.getElementById('pb-bind-preview');
+  const hint = document.getElementById('pb-bind-preview-hint');
+  if (!preview || !hint) return;
+
+  const persona = getPersonaCatalogItem(personaId);
+  if (!personaId) {
+    preview.value = '未选择 AstrBot 人格';
+    hint.textContent = '这里展示从 AstrBot 人格中读取到、实际可供本插件使用的人格内容。';
+    return;
+  }
+  if (!persona) {
+    preview.value = '当前绑定的人格未出现在 AstrBot 列表中，可能已删除或暂时不可读取。';
+    hint.textContent = '当前绑定的人格未出现在列表里，因此无法展示预览。';
+    return;
+  }
+
+  const effectivePrompt = persona.effective_prompt || '';
+  preview.value = effectivePrompt || '该 AstrBot 人格没有可读取的 prompt 内容';
+
+  const slotHint = persona.has_persona_slot
+    ? '该人格包含 <qunyou_persona_slot>，预览展示的是槽内会被实际使用的内容。'
+    : '该人格不包含 <qunyou_persona_slot>，预览展示的是整个 AstrBot system prompt。';
+  hint.textContent = `${getPersonaCatalogLabel(persona.persona_id)}，原始长度 ${persona.prompt_length}，有效内容长度 ${persona.effective_prompt_length}。${slotHint}`;
+}
+
+async function refreshAstrBotPersonaCatalog(force = false, selectedId = null) {
+  if (force || !astrbotPersonaCatalog.length) {
+    const personas = await api('/api/astrbot-personas');
+    astrbotPersonaCatalog = Array.isArray(personas) ? personas : [];
+    astrbotPersonaMap = new Map(astrbotPersonaCatalog.map(persona => [persona.persona_id, persona]));
+  }
+
+  const currentSelectedId = selectedId !== null
+    ? selectedId
+    : ((document.getElementById('pb-bind-select') || {}).value || '');
+  setPersonaCatalogOptions(currentSelectedId);
+  renderPersonaCatalogPreview(currentSelectedId);
+}
+
+function handlePersonaSelectionChange() {
+  const select = document.getElementById('pb-bind-select');
+  renderPersonaCatalogPreview(select ? select.value : '');
+}
+
+async function loadPersonaBindings() {
+  if (!allGroups.length) {
+    allGroups = (await api('/api/groups')) || [];
+  }
+  await refreshAstrBotPersonaCatalog();
+  const bindings = (await api('/api/persona-bindings')) || [];
+  const tbody = document.getElementById('pb-tbody');
+  if (!tbody) return;
+
+  const bindingMap = new Map(bindings.map(b => [b.group_id, b]));
+  const knownGroupIds = allGroups.map(g => g.group_id);
+  const groupIds = [
+    ...knownGroupIds,
+    ...bindings.map(b => b.group_id).filter(id => !knownGroupIds.includes(id)),
+  ];
+
+  if (!groupIds.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">暂无数据</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = groupIds.map(groupId => {
+    const binding = bindingMap.get(groupId) || {
+      group_id: groupId,
+      bound_persona_id: null,
+      has_base_persona: false,
+      is_learning_enabled: true,
+      persona_message_count: 0,
+      active_persona_version_num: null,
+      effective_persona_source: null,
+    };
+    return `
+    <tr>
+      <td style="font-family:monospace;font-size:12px">${escapeHtml(binding.group_id)}</td>
+      <td>${binding.bound_persona_id ? escapeHtml(getPersonaCatalogLabel(binding.bound_persona_id)) : '<em style="color:var(--text-muted)">未绑定</em>'}</td>
+      <td>${binding.has_base_persona ? '<span class="badge" style="background:rgba(52,211,153,0.15);color:var(--success)">已配置</span>' : '<em style="color:var(--text-muted)">未配置</em>'}</td>
+      <td>${binding.is_learning_enabled ? '<span class="badge" style="background:rgba(52,211,153,0.15);color:var(--success)">开启</span>' : '<span class="badge" style="background:rgba(248,113,113,0.15);color:var(--danger)">关闭</span>'}</td>
+      <td>${binding.persona_message_count}</td>
+      <td>${renderPersonaSource(binding.effective_persona_source, binding.active_persona_version_num)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" data-group-id="${encodeDataValue(binding.group_id)}" onclick="showPbDetail(decodeURIComponent(this.dataset.groupId))">管理</button>
+      </td>
+    </tr>
+  `;
+  }).join('');
+}
+
+async function showPbDetail(groupId) {
+  currentPbGroup = groupId;
+  await refreshAstrBotPersonaCatalog();
+  const [detail, slotStatus] = await Promise.all([
+    api(`/api/persona-bindings/${groupId}`),
+    api(`/api/persona-bindings/${groupId}/slot-status`),
+  ]);
+  if (!detail) return;
+  document.getElementById('pb-detail-title').textContent = `群组: ${groupId}`;
+  document.getElementById('pb-detail-persona').textContent = getPersonaCatalogLabel(detail.bound_persona_id);
+  document.getElementById('pb-learning-toggle').checked = detail.is_learning_enabled;
+  document.getElementById('pb-detail-msg-count').textContent = detail.persona_message_count;
+  setPersonaCatalogOptions(detail.bound_persona_id || '');
+  renderPersonaCatalogPreview(detail.bound_persona_id || '');
+  document.getElementById('pb-base-persona').value = detail.base_persona_prompt || '';
+  document.getElementById('pb-effective-persona').value = detail.effective_persona || '暂无可生效的人格内容';
+  document.getElementById('pb-effective-source').textContent = getPersonaSourceLabel(
+    detail.effective_persona_source,
+    detail.active_persona_version_num,
+  );
+  document.getElementById('pb-effective-hint').textContent = detail.effective_persona_source
+    ? `当前会替换到 <qunyou_persona_slot> 的内容来源：${getPersonaSourceLabel(detail.effective_persona_source, detail.active_persona_version_num)}`
+    : '当前没有可替换到 <qunyou_persona_slot> 的人格内容。';
+  document.getElementById('pb-slot-status').innerHTML = renderSlotStatus(slotStatus);
+
+  const tbody = document.getElementById('pb-versions-tbody');
+  if (!detail.persona_versions.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">暂无版本记录</td></tr>';
+  } else {
+    tbody.innerHTML = detail.persona_versions.map(v => `
+      <tr>
+        <td><strong>V${v.version_num}</strong></td>
+        <td style="font-size:12px;color:var(--text-muted)">${v.created_at || '-'}</td>
+        <td>${v.is_manual ? '<span class="badge badge-custom">手动</span>' : '<span class="badge badge-auto">自动</span>'}</td>
+        <td>${v.is_active ? '<span style="color:var(--success)">激活</span>' : ''}</td>
+        <td>${truncate(v.persona_prompt, 42)}</td>
+        <td>
+          ${!v.is_active ? `<button class="btn btn-primary btn-sm" onclick="activatePersonaVersion(${v.version_num})">切换</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById('pb-detail-panel').style.display = 'block';
+}
+
+function refreshPersonaDetail() {
+  if (!currentPbGroup) return;
+  showPbDetail(currentPbGroup);
+}
+
+function hidePbDetail() {
+  document.getElementById('pb-detail-panel').style.display = 'none';
+  currentPbGroup = null;
+}
+
+async function bindPersona() {
+  if (!currentPbGroup) return;
+  const personaId = (document.getElementById('pb-bind-select').value || '').trim();
+  await api(`/api/persona-bindings/${currentPbGroup}/bind`, {
+    method: 'PUT',
+    body: JSON.stringify({ persona_id: personaId || null }),
+  });
+  showPbDetail(currentPbGroup);
+  loadPersonaBindings();
+}
+
+async function unbindPersona() {
+  if (!currentPbGroup) return;
+  if (!confirm('确认解除 AstrBot 人格绑定？')) return;
+  await api(`/api/persona-bindings/${currentPbGroup}/bind`, {
+    method: 'PUT',
+    body: JSON.stringify({ persona_id: null }),
+  });
+  showPbDetail(currentPbGroup);
+  loadPersonaBindings();
+}
+
+async function importBasePersona() {
+  if (!currentPbGroup) return;
+  const personaId = (document.getElementById('pb-bind-select').value || '').trim();
+  const result = await api(`/api/persona-bindings/${currentPbGroup}/import-base-persona`, {
+    method: 'POST',
+    body: JSON.stringify({ persona_id: personaId || null }),
+  });
+  if (result && result.ok) {
+    alert(`已导入 ${result.imported_length} 字的人格内容为本地基础人格`);
+    showPbDetail(currentPbGroup);
+    loadPersonaBindings();
+  }
+}
+
+async function saveBasePersona() {
+  if (!currentPbGroup) return;
+  const basePersonaPrompt = document.getElementById('pb-base-persona').value;
+  await api(`/api/persona-bindings/${currentPbGroup}/base-persona`, {
+    method: 'PUT',
+    body: JSON.stringify({ base_persona_prompt: basePersonaPrompt }),
+  });
+  showPbDetail(currentPbGroup);
+  loadPersonaBindings();
+}
+
+async function clearBasePersona() {
+  if (!currentPbGroup) return;
+  if (!confirm('确认清空本地基础人格？')) return;
+  document.getElementById('pb-base-persona').value = '';
+  await saveBasePersona();
+}
+
+async function toggleLearning() {
+  if (!currentPbGroup) return;
+  const enabled = document.getElementById('pb-learning-toggle').checked;
+  await api(`/api/persona-bindings/${currentPbGroup}/learning-toggle`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+async function triggerPersonaLearn() {
+  if (!currentPbGroup) return;
+  const result = await api(`/api/persona-bindings/${currentPbGroup}/learn`, { method: 'POST' });
+  if (result && result.message) alert(result.message);
+  if (result && result.ok) {
+    showPbDetail(currentPbGroup);
+    loadLearningJobs();
+  }
+}
+
+async function activatePersonaVersion(versionNum) {
+  if (!currentPbGroup) return;
+  const token = getStoredToken();
+  const res = await fetch(API + `/api/persona-bindings/${currentPbGroup}/versions/${versionNum}/activate`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+    },
+  });
+  if (res.status === 401) {
+    clearStoredToken();
+    showLogin();
+    return;
+  }
+  if (res.status === 409) {
+    const data = await res.json().catch(() => null);
+    alert((data && data.detail) || '该人格版本仍在审核中，不能直接激活');
+    return;
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    alert((data && data.detail) || '切换人格版本失败');
+    return;
+  }
+  showPbDetail(currentPbGroup);
+  loadPersonaBindings();
+}
+
+async function clearAllPersonaVersions() {
+  if (!currentPbGroup) return;
+  if (!confirm('确认清空该群的所有人格版本历史？这不会删除绑定关系和本地基础人格。')) return;
+
+  const token = getStoredToken();
+  const res = await fetch(API + `/api/persona-bindings/${currentPbGroup}/versions`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+    },
+  });
+  if (res.status === 401) {
+    clearStoredToken();
+    showLogin();
+    return;
+  }
+  if (res.status === 409) {
+    const data = await res.json().catch(() => null);
+    alert((data && data.detail) || '该群有人格学习任务进行中，暂时不能清空版本历史');
+    return;
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    alert((data && data.detail) || '清空人格版本历史失败');
+    return;
+  }
+
+  const result = await res.json().catch(() => null);
+  const deletedVersions = Number((result && result.deleted_versions) || 0);
+  const supersededReviews = Number((result && result.superseded_reviews) || 0);
+  let message = `已清空 ${deletedVersions} 条人格版本记录`;
+  if (supersededReviews > 0) {
+    message += `，并作废 ${supersededReviews} 条待审核版本`;
+  }
+  alert(message);
+  showPbDetail(currentPbGroup);
+  loadPersonaBindings();
+  loadLearningJobs();
+}
+
+async function deleteBinding() {
+  if (!currentPbGroup) return;
+  if (!confirm('确认删除每群人格配置？此操作不可恢复，将删除所有人格版本历史。')) return;
+  await api(`/api/persona-bindings/${currentPbGroup}`, { method: 'DELETE' });
+  hidePbDetail();
+  loadPersonaBindings();
+}
+
+// ---- Learning Jobs ----
+async function loadLearningJobs() {
+  const status = document.getElementById('lj-status-filter').value;
+  const jobType = document.getElementById('lj-type-filter').value;
+  let url = '/api/learning-jobs?';
+  if (status) url += `status=${encodeURIComponent(status)}&`;
+  if (jobType) url += `job_type=${encodeURIComponent(jobType)}&`;
+  const jobs = await api(url);
+  if (!jobs) return;
+  const tbody = document.getElementById('lj-tbody');
+  if (!jobs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">暂无任务记录</td></tr>';
+    return;
+  }
+  const STATUS_MAP = { pending: '进行中', completed: '已完成', failed: '失败' };
+  const TYPE_MAP = {
+    combined_learn: '每群人格学习',
+    persona_learn: '群画像学习',
+    jargon_infer: '黑话推断',
+    tone_learn: '旧版语气学习',
+  };
+  tbody.innerHTML = jobs.map(j => `
+    <tr>
+      <td style="font-family:monospace">#${j.id}</td>
+      <td style="font-family:monospace;font-size:12px">${escapeHtml(j.group_id)}</td>
+      <td>${escapeHtml(TYPE_MAP[j.job_type] || j.job_type)}</td>
+      <td><span class="badge" style="${j.status === 'completed' ? 'background:rgba(52,211,153,0.15);color:var(--success)' : j.status === 'failed' ? 'background:rgba(248,113,113,0.15);color:var(--danger)' : 'background:rgba(251,191,36,0.15);color:var(--warning)'}">${STATUS_MAP[j.status] || j.status}</span></td>
+      <td style="font-size:12px;color:var(--text-muted)">${escapeHtml(j.created_at || '-')}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="showLjDetail(${j.id})">详情</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function showLjDetail(jobId) {
+  const j = await api(`/api/learning-jobs/${jobId}`);
+  if (!j) return;
+  let msg = `任务 #${j.id}\n群组: ${j.group_id}\n类型: ${j.job_type}\n状态: ${j.status}\n创建: ${j.created_at || '-'}`;
+  if (j.completed_at) msg += `\n完成: ${j.completed_at}`;
+  if (j.result) msg += `\n结果:\n${JSON.stringify(j.result, null, 2)}`;
+  alert(msg);
+}
+
+// ---- Prompts ----
+const CATEGORY_LABELS = { learning: '学习类', injection: '注入类' };
+const promptCache = new Map();
+
+async function loadPrompts() {
+  const cat = document.getElementById('prompt-category-select').value;
+  let url = '/api/prompts';
+  if (cat) url += `?category=${encodeURIComponent(cat)}`;
+  const prompts = await api(url);
+  if (!prompts) return;
+  promptCache.clear();
+  prompts.forEach(p => promptCache.set(p.string_key, p));
+  const tbody = document.getElementById('prompts-tbody');
+  if (!prompts.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = prompts.map(p => `
+    <tr>
+      <td><strong style="font-family:monospace;font-size:12px">${escapeHtml(p.string_key)}</strong></td>
+      <td style="max-width:200px">${escapeHtml(p.description || '-')}</td>
+      <td><span class="badge badge-custom">${escapeHtml(CATEGORY_LABELS[p.category] || p.category)}</span></td>
+      <td style="font-size:12px;color:var(--text-muted)">${escapeHtml(p.updated_at || '-')}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" data-prompt-key="${escapeHtml(p.string_key)}" onclick="openPromptModalByKey(this.dataset.promptKey)">编辑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openPromptModalByKey(key) {
+  const prompt = promptCache.get(key);
+  if (!prompt) return;
+  openPromptModal(prompt);
+}
+
+function openPromptModal(p) {
+  document.getElementById('edit-prompt-key').value = p.string_key;
+  document.getElementById('edit-prompt-key-display').value = p.string_key;
+  document.getElementById('edit-prompt-description').value = p.description || '';
+  document.getElementById('edit-prompt-category').value = p.category;
+  document.getElementById('edit-prompt-value').value = p.value;
+  document.getElementById('prompt-modal-title').textContent = `编辑 Prompt: ${p.string_key}`;
+  document.getElementById('prompt-modal').classList.add('open');
+}
+
+async function doSavePrompt() {
+  const key = document.getElementById('edit-prompt-key').value;
+  const value = document.getElementById('edit-prompt-value').value;
+  if (!key) return;
+  const token = getStoredToken();
+  const res = await fetch(API + `/api/prompts/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+    },
+    body: JSON.stringify({ value }),
+  });
+  if (res.status === 401) {
+    clearStoredToken();
+    showLogin();
+    return;
+  }
+  if (res.ok) {
+    closeModal('prompt-modal');
+    loadPrompts();
+  } else {
+    const data = await res.json().catch(() => null);
+    alert((data && data.detail) || '保存失败');
+  }
+}
+
+async function doResetPrompt() {
+  const key = document.getElementById('edit-prompt-key').value;
+  if (!key) return;
+  if (!confirm('确认重置为默认值？当前修改将被覆盖。')) return;
+  const result = await api(`/api/prompts/${encodeURIComponent(key)}/reset`, { method: 'POST' });
+  if (result && result.string_key) {
+    document.getElementById('edit-prompt-value').value = result.value;
+    document.getElementById('edit-prompt-description').value = result.description || '';
+    loadPrompts();
+    alert('已重置为默认值');
+  } else {
+    alert('重置失败');
+  }
+}
 
 // ---- Init ----
-loadStats();
+// (auth handled by initApp() called in the auth block above)
 </script>
 </body>
 </html>

@@ -15,12 +15,13 @@ from __future__ import annotations
 
 import collections
 import json
-from typing import TYPE_CHECKING
+from typing import Any as _Any, TYPE_CHECKING
+
+Any = _Any  # noqa: A001
 
 from astrbot.api import logger
 
 from ..config import PluginConfig
-from ..prompts.templates import JARGON_INFER_BATCH
 
 if TYPE_CHECKING:
     from ..services.llm_adapter import LLMAdapter
@@ -30,11 +31,13 @@ if TYPE_CHECKING:
 class JargonService:
     """Tracks high-frequency terms per group and infers meanings."""
 
-    def __init__(self, config: PluginConfig, llm: "LLMAdapter") -> None:
+    def __init__(self, config: PluginConfig, llm: "LLMAdapter", plugin: Any = None) -> None:
         self._config = config.jargon
         self._llm = llm
+        self._plugin = plugin
         # In-memory counters: group_id → Counter
         self._counters: dict[str, collections.Counter] = {}
+        self._prompts: Any = None  # lazy
 
     # ================================================================== #
     #  Real-time counting
@@ -122,7 +125,12 @@ class JargonService:
                 )
 
                 # LLM batch inference
-                prompt = JARGON_INFER_BATCH.format(terms=term_list)
+                if self._prompts is None:
+                    self._prompts = getattr(self._plugin, "prompt_service", None)
+                if not self._prompts:
+                    return 0
+                template = await self._prompts.get_prompt("JARGON_INFER_BATCH")
+                prompt = template.format(terms=term_list)
                 response = await self._llm.fast_chat(prompt)
 
                 if not response:

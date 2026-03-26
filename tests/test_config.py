@@ -26,6 +26,10 @@ class TestDefaults:
         cfg = PluginConfig()
         assert cfg.webui.port > 0
 
+    def test_default_debug_disabled(self):
+        cfg = PluginConfig()
+        assert cfg.debug.enabled is False
+
     def test_default_review_gate_disabled(self):
         cfg = PluginConfig()
         assert cfg.review_gate.enabled_for_group_persona is False
@@ -77,6 +81,19 @@ class TestFromAstrbotConfig:
         cfg = PluginConfig.from_astrbot_config(raw)
         assert cfg.emotion.sensitivity == 0.8
         assert cfg.debounce.mode == "time"  # unchanged default
+
+    def test_debug_mapping(self):
+        raw = {
+            "Debug_Settings": {
+                "enabled": True,
+            },
+            "Knowledge_Settings": {
+                "ingestion_cooldown": 15,
+            },
+        }
+        cfg = PluginConfig.from_astrbot_config(raw)
+        assert cfg.debug.enabled is True
+        assert cfg.knowledge.ingestion_cooldown == 15
 
     def test_review_gate_mapping(self):
         raw = {

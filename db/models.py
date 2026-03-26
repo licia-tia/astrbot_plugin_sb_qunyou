@@ -262,6 +262,7 @@ class GroupPersonaBinding(Base):
 
     group_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     bound_persona_id: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    base_persona_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
     active_version_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("persona_tone_versions.id", ondelete="SET NULL", use_alter=True), nullable=True
     )
@@ -306,4 +307,23 @@ class PersonaToneVersion(Base):
 
     __table_args__ = (
         Index("ix_tone_ver_group_num", "group_id", "version_num", unique=True),
+    )
+
+
+# ---------------------------------------------------------------------------
+# 13. system_prompts — Prompt 模板管理
+# ---------------------------------------------------------------------------
+class SystemPrompt(Base):
+    __tablename__ = "system_prompts"
+
+    string_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    category: Mapped[str] = mapped_column(String(32), nullable=False, default="learning")
+    updated_at: Mapped[_dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_prompt_category", "category"),
     )

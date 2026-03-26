@@ -25,6 +25,7 @@ from .models import (
     LearningJob,
     PersonaToneVersion,
     RawMessage,
+    SystemPrompt,
     ThreadMessage,
     UserMemory,
 )
@@ -35,6 +36,7 @@ class Repository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+        self._PERSONA_REVIEW_TYPES: tuple[str, ...] = ("persona_version", "tone_version")
 
     # ---- helpers ----
 
@@ -43,6 +45,46 @@ class Repository:
 
     async def flush(self) -> None:
         await self._s.flush()
+
+    def _touch_update_values(
+        self,
+        model: type[Any],
+        values: dict[str, Any],
+    ) -> dict[str, Any]:
+        update_values = dict(values)
+        if hasattr(model, "updated_at"):
+            update_values["updated_at"] = func.now()
+        return update_values
+
+    def _merge_insert_values(
+        self,
+        defaults: dict[str, Any],
+        values: dict[str, Any],
+    ) -> dict[str, Any]:
+        insert_values = dict(defaults)
+        insert_values.update(values)
+        return insert_values
+
+    def _review_prompt_type_variants(self, prompt_type: str) -> tuple[str, ...]:
+        if prompt_type in self._PERSONA_REVIEW_TYPES:
+            return self._PERSONA_REVIEW_TYPES
+        return (prompt_type,)
+
+    async def _insert_or_fetch_singleton(
+        self,
+        model: type[Any],
+        *,
+        key_column: Any,
+        insert_values: dict[str, Any],
+    ) -> Any:
+        stmt = pg_insert(model).values(**insert_values).on_conflict_do_nothing(
+            index_elements=[key_column]
+        )
+        await self._s.execute(stmt)
+        result = await self._s.execute(
+            select(model).where(key_column == insert_values[key_column.key])
+        )
+        return result.scalar_one()
 
     # =====================================================================
     #  RawMessage
@@ -107,14 +149,16 @@ class Repository:
     # =====================================================================
 
     async def get_or_create_group_profile(self, group_id: str) -> GroupProfile:
-        stmt = select(GroupProfile).where(GroupProfile.group_id == group_id)
-        result = await self._s.execute(stmt)
-        profile = result.scalar_one_or_none()
-        if profile is None:
-            profile = GroupProfile(group_id=group_id)
-            self._s.add(profile)
-            await self._s.flush()
-        return profile
+        return await self._insert_or_fetch_singleton(
+            GroupProfile,
+            key_column=GroupProfile.group_id,
+            insert_values={
+                "group_id": group_id,
+                "base_prompt": "",
+                "learned_prompt": "",
+                "message_count_since_learn": 0,
+            },
+        )
 
     async def update_group_profile(
         self,
@@ -138,22 +182,39 @@ class Repository:
         if message_count_since_learn is not None:
             values["message_count_since_learn"] = message_count_since_learn
         if values:
-            stmt = (
-                update(GroupProfile)
-                .where(GroupProfile.group_id == group_id)
-                .values(**values)
+            stmt = pg_insert(GroupProfile).values(
+                **self._merge_insert_values(
+                    {
+                        "group_id": group_id,
+                        "base_prompt": "",
+                        "learned_prompt": "",
+                        "message_count_since_learn": 0,
+                    },
+                    values,
+                )
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[GroupProfile.group_id],
+                set_=self._touch_update_values(GroupProfile, values),
             )
             await self._s.execute(stmt)
 
     async def increment_group_message_count(self, group_id: str) -> int:
         """Atomically increment and return the new message_count_since_learn."""
-        await self.get_or_create_group_profile(group_id)
-        stmt = (
-            update(GroupProfile)
-            .where(GroupProfile.group_id == group_id)
-            .values(message_count_since_learn=GroupProfile.message_count_since_learn + 1)
-            .returning(GroupProfile.message_count_since_learn)
+        stmt = pg_insert(GroupProfile).values(
+            group_id=group_id,
+            base_prompt="",
+            learned_prompt="",
+            message_count_since_learn=1,
         )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[GroupProfile.group_id],
+            set_={
+                "message_count_since_learn": GroupProfile.message_count_since_learn + 1,
+                "updated_at": func.now(),
+            },
+        )
+        stmt = stmt.returning(GroupProfile.message_count_since_learn)
         result = await self._s.execute(stmt)
         return result.scalar_one()
 
@@ -331,14 +392,16 @@ class Repository:
     # =====================================================================
 
     async def get_or_create_emotion(self, group_id: str, default_mood: str = "neutral") -> EmotionState:
-        stmt = select(EmotionState).where(EmotionState.group_id == group_id)
-        result = await self._s.execute(stmt)
-        state = result.scalar_one_or_none()
-        if state is None:
-            state = EmotionState(group_id=group_id, mood=default_mood)
-            self._s.add(state)
-            await self._s.flush()
-        return state
+        return await self._insert_or_fetch_singleton(
+            EmotionState,
+            key_column=EmotionState.group_id,
+            insert_values={
+                "group_id": group_id,
+                "mood": default_mood,
+                "valence": 0.0,
+                "arousal": 0.0,
+            },
+        )
 
     async def update_emotion(
         self,
@@ -347,10 +410,15 @@ class Repository:
         valence: float = 0.0,
         arousal: float = 0.0,
     ) -> None:
-        stmt = (
-            update(EmotionState)
-            .where(EmotionState.group_id == group_id)
-            .values(mood=mood, valence=valence, arousal=arousal)
+        values = {
+            "mood": mood,
+            "valence": valence,
+            "arousal": arousal,
+        }
+        stmt = pg_insert(EmotionState).values(group_id=group_id, **values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[EmotionState.group_id],
+            set_=self._touch_update_values(EmotionState, values),
         )
         await self._s.execute(stmt)
 
@@ -377,11 +445,14 @@ class Repository:
         # On conflict: increment frequency, only update meaning if provided
         update_dict: dict[str, Any] = {
             "frequency": JargonTerm.frequency + frequency,
+            "updated_at": func.now(),
         }
         if meaning:
             update_dict["meaning"] = meaning
+        if is_custom:
+            update_dict["is_custom"] = True
         stmt = stmt.on_conflict_do_update(
-            index_elements=["group_id", "term"],
+            index_elements=[JargonTerm.group_id, JargonTerm.term],
             set_=update_dict,
         )
         await self._s.execute(stmt)
@@ -433,16 +504,23 @@ class Repository:
     async def add_custom_jargon(
         self, group_id: str, term: str, meaning: str
     ) -> int:
-        j = JargonTerm(
+        stmt = pg_insert(JargonTerm).values(
             group_id=group_id,
             term=term,
             meaning=meaning,
             frequency=0,
             is_custom=True,
         )
-        self._s.add(j)
-        await self._s.flush()
-        return j.id
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[JargonTerm.group_id, JargonTerm.term],
+            set_={
+                "meaning": meaning,
+                "is_custom": True,
+                "updated_at": func.now(),
+            },
+        ).returning(JargonTerm.id)
+        result = await self._s.execute(stmt)
+        return result.scalar_one()
 
     # =====================================================================
     #  BotResponse
@@ -510,7 +588,7 @@ class Repository:
             update(LearnedPromptReview)
             .where(
                 LearnedPromptReview.group_id == group_id,
-                LearnedPromptReview.prompt_type == prompt_type,
+                LearnedPromptReview.prompt_type.in_(self._review_prompt_type_variants(prompt_type)),
                 LearnedPromptReview.status == "pending",
             )
             .values(
@@ -531,7 +609,11 @@ class Repository:
         change_summary: str = "",
         metadata_json: dict | None = None,
         target_tone_version_id: int | None = None,
+        target_persona_version_id: int | None = None,
     ) -> LearnedPromptReview:
+        target_version_id = target_persona_version_id
+        if target_version_id is None:
+            target_version_id = target_tone_version_id
         review = LearnedPromptReview(
             group_id=group_id,
             prompt_type=prompt_type,
@@ -540,7 +622,7 @@ class Repository:
             proposed_value=proposed_value,
             change_summary=change_summary,
             metadata_json=metadata_json,
-            target_tone_version_id=target_tone_version_id,
+            target_tone_version_id=target_version_id,
         )
         self._s.add(review)
         await self._s.flush()
@@ -565,7 +647,9 @@ class Repository:
         if group_id is not None:
             stmt = stmt.where(LearnedPromptReview.group_id == group_id)
         if prompt_type is not None:
-            stmt = stmt.where(LearnedPromptReview.prompt_type == prompt_type)
+            stmt = stmt.where(
+                LearnedPromptReview.prompt_type.in_(self._review_prompt_type_variants(prompt_type))
+            )
         stmt = stmt.order_by(LearnedPromptReview.created_at.desc()).limit(limit)
         result = await self._s.execute(stmt)
         return result.scalars().all()
@@ -579,7 +663,9 @@ class Repository:
     ) -> Sequence[LearnedPromptReview]:
         stmt = select(LearnedPromptReview).where(LearnedPromptReview.group_id == group_id)
         if prompt_type is not None:
-            stmt = stmt.where(LearnedPromptReview.prompt_type == prompt_type)
+            stmt = stmt.where(
+                LearnedPromptReview.prompt_type.in_(self._review_prompt_type_variants(prompt_type))
+            )
         stmt = stmt.order_by(LearnedPromptReview.created_at.desc()).limit(limit)
         result = await self._s.execute(stmt)
         return result.scalars().all()
@@ -650,7 +736,7 @@ class Repository:
                 learned_prompt=review.proposed_value,
                 learned_prompt_history=history,
             )
-        elif review.prompt_type == "tone_version":
+        elif review.prompt_type in self._PERSONA_REVIEW_TYPES:
             if review.target_tone_version_id is None:
                 return False
             ok = await self.set_active_tone_version(review.group_id, review.target_tone_version_id)
@@ -690,14 +776,56 @@ class Repository:
     # =====================================================================
 
     async def get_or_create_persona_binding(self, group_id: str) -> GroupPersonaBinding:
+        return await self._insert_or_fetch_singleton(
+            GroupPersonaBinding,
+            key_column=GroupPersonaBinding.group_id,
+            insert_values={
+                "group_id": group_id,
+                "base_persona_prompt": "",
+                "is_learning_enabled": True,
+                "tone_message_count": 0,
+            },
+        )
+
+    async def get_persona_binding(self, group_id: str) -> GroupPersonaBinding | None:
+        """Get binding by group_id. Returns None if not found (no create)."""
         stmt = select(GroupPersonaBinding).where(GroupPersonaBinding.group_id == group_id)
         result = await self._s.execute(stmt)
-        binding = result.scalar_one_or_none()
-        if binding is None:
-            binding = GroupPersonaBinding(group_id=group_id)
-            self._s.add(binding)
-            await self._s.flush()
-        return binding
+        return result.scalar_one_or_none()
+
+    async def get_all_persona_bindings(self) -> Sequence[GroupPersonaBinding]:
+        """Return all group persona bindings ordered by updated_at desc."""
+        stmt = (
+            select(GroupPersonaBinding)
+            .order_by(GroupPersonaBinding.updated_at.desc())
+        )
+        result = await self._s.execute(stmt)
+        return result.scalars().all()
+
+    async def delete_persona_binding(self, group_id: str) -> bool:
+        """Delete binding and cascade-delete tone versions. Returns True if deleted."""
+        stmt = delete(GroupPersonaBinding).where(GroupPersonaBinding.group_id == group_id)
+        result = await self._s.execute(stmt)
+        return result.rowcount > 0
+
+    async def get_learning_jobs(
+        self,
+        group_id: str | None = None,
+        status: str | None = None,
+        job_type: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[LearningJob]:
+        """Return learning jobs matching optional filters."""
+        stmt = select(LearningJob)
+        if group_id is not None:
+            stmt = stmt.where(LearningJob.group_id == group_id)
+        if status is not None:
+            stmt = stmt.where(LearningJob.status == status)
+        if job_type is not None:
+            stmt = stmt.where(LearningJob.job_type == job_type)
+        stmt = stmt.order_by(LearningJob.created_at.desc()).limit(limit)
+        result = await self._s.execute(stmt)
+        return result.scalars().all()
 
     async def get_persona_binding_with_active_tone(
         self, group_id: str
@@ -714,6 +842,12 @@ class Repository:
             tone_text = binding.active_version.learned_tone
         return binding, tone_text
 
+    async def get_persona_binding_with_active_persona(
+        self, group_id: str
+    ) -> tuple[GroupPersonaBinding | None, str]:
+        """Return (binding, active_persona_text)."""
+        return await self.get_persona_binding_with_active_tone(group_id)
+
     async def add_new_tone_version(
         self,
         group_id: str,
@@ -722,31 +856,75 @@ class Repository:
         is_manual: bool = False,
     ) -> PersonaToneVersion:
         """Insert a new tone version and optionally activate it."""
-        # Get or create binding
-        binding = await self.get_or_create_persona_binding(group_id)
+        await self.get_or_create_persona_binding(group_id)
 
-        # Determine next version number
-        max_stmt = (
-            select(func.coalesce(func.max(PersonaToneVersion.version_num), 0))
-            .where(PersonaToneVersion.group_id == group_id)
-        )
-        result = await self._s.execute(max_stmt)
-        next_num = result.scalar_one() + 1
+        version: PersonaToneVersion | None = None
+        for _ in range(5):
+            max_stmt = (
+                select(func.coalesce(func.max(PersonaToneVersion.version_num), 0))
+                .where(PersonaToneVersion.group_id == group_id)
+            )
+            result = await self._s.execute(max_stmt)
+            next_num = result.scalar_one() + 1
 
-        version = PersonaToneVersion(
-            group_id=group_id,
-            version_num=next_num,
-            learned_tone=learned_tone,
-            is_manual=is_manual,
-        )
-        self._s.add(version)
-        await self._s.flush()
+            insert_stmt = pg_insert(PersonaToneVersion).values(
+                group_id=group_id,
+                version_num=next_num,
+                learned_tone=learned_tone,
+                is_manual=is_manual,
+            )
+            insert_stmt = insert_stmt.on_conflict_do_nothing(
+                index_elements=[
+                    PersonaToneVersion.group_id,
+                    PersonaToneVersion.version_num,
+                ]
+            ).returning(PersonaToneVersion.id)
+            insert_result = await self._s.execute(insert_stmt)
+            version_id = insert_result.scalar_one_or_none()
+            if version_id is None:
+                continue
+
+            version = await self._s.get(PersonaToneVersion, version_id)
+            break
+
+        if version is None:
+            raise RuntimeError(
+                f"failed to allocate tone version for group {group_id}"
+            )
 
         if auto_activate:
-            binding.active_version_id = version.id
-            await self._s.flush()
+            stmt = pg_insert(GroupPersonaBinding).values(
+                group_id=group_id,
+                base_persona_prompt="",
+                active_version_id=version.id,
+                is_learning_enabled=True,
+                tone_message_count=0,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[GroupPersonaBinding.group_id],
+                set_=self._touch_update_values(
+                    GroupPersonaBinding,
+                    {"active_version_id": version.id},
+                ),
+            )
+            await self._s.execute(stmt)
 
         return version
+
+    async def add_new_persona_version(
+        self,
+        group_id: str,
+        persona_prompt: str,
+        auto_activate: bool = True,
+        is_manual: bool = False,
+    ) -> PersonaToneVersion:
+        """Insert a new persona version and optionally activate it."""
+        return await self.add_new_tone_version(
+            group_id,
+            learned_tone=persona_prompt,
+            auto_activate=auto_activate,
+            is_manual=is_manual,
+        )
 
     async def set_active_tone_version(
         self, group_id: str, version_id: int
@@ -762,13 +940,28 @@ class Repository:
         if version is None:
             return False
 
-        stmt = (
-            update(GroupPersonaBinding)
-            .where(GroupPersonaBinding.group_id == group_id)
-            .values(active_version_id=version_id)
+        stmt = pg_insert(GroupPersonaBinding).values(
+            group_id=group_id,
+            base_persona_prompt="",
+            active_version_id=version_id,
+            is_learning_enabled=True,
+            tone_message_count=0,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[GroupPersonaBinding.group_id],
+            set_=self._touch_update_values(
+                GroupPersonaBinding,
+                {"active_version_id": version_id},
+            ),
         )
         await self._s.execute(stmt)
         return True
+
+    async def set_active_persona_version(
+        self, group_id: str, version_id: int
+    ) -> bool:
+        """Switch active persona version."""
+        return await self.set_active_tone_version(group_id, version_id)
 
     async def set_active_tone_version_by_num(
         self, group_id: str, version_num: int
@@ -784,6 +977,12 @@ class Repository:
             return False
         return await self.set_active_tone_version(group_id, version.id)
 
+    async def set_active_persona_version_by_num(
+        self, group_id: str, version_num: int
+    ) -> bool:
+        """Switch active persona version by version_num."""
+        return await self.set_active_tone_version_by_num(group_id, version_num)
+
     async def get_tone_versions(
         self, group_id: str
     ) -> Sequence[PersonaToneVersion]:
@@ -795,46 +994,129 @@ class Repository:
         result = await self._s.execute(stmt)
         return result.scalars().all()
 
-    async def increment_tone_message_count(self, group_id: str) -> int:
-        """Atomically increment and return the new tone_message_count."""
-        # Ensure binding exists
-        await self.get_or_create_persona_binding(group_id)
-        stmt = (
+    async def get_persona_versions(
+        self, group_id: str
+    ) -> Sequence[PersonaToneVersion]:
+        """Return persona version history ordered by newest first."""
+        return await self.get_tone_versions(group_id)
+
+    async def clear_all_tone_versions(
+        self, group_id: str
+    ) -> tuple[int, int]:
+        """Delete all tone versions while preserving the group binding row."""
+        binding = await self.get_persona_binding(group_id)
+        if binding is None:
+            return 0, 0
+
+        superseded_reviews = await self.supersede_pending_reviews(group_id, "persona_version")
+
+        clear_active_stmt = (
             update(GroupPersonaBinding)
             .where(GroupPersonaBinding.group_id == group_id)
-            .values(tone_message_count=GroupPersonaBinding.tone_message_count + 1)
-            .returning(GroupPersonaBinding.tone_message_count)
+            .values(
+                **self._touch_update_values(
+                    GroupPersonaBinding,
+                    {"active_version_id": None},
+                )
+            )
         )
+        await self._s.execute(clear_active_stmt)
+
+        del_stmt = delete(PersonaToneVersion).where(PersonaToneVersion.group_id == group_id)
+        result = await self._s.execute(del_stmt)
+        return result.rowcount or 0, superseded_reviews
+
+    async def clear_all_persona_versions(
+        self, group_id: str
+    ) -> tuple[int, int]:
+        """Delete all persona versions while preserving the binding row."""
+        return await self.clear_all_tone_versions(group_id)
+
+    async def increment_tone_message_count(self, group_id: str) -> int:
+        """Atomically increment and return the new tone_message_count."""
+        stmt = pg_insert(GroupPersonaBinding).values(
+            group_id=group_id,
+            base_persona_prompt="",
+            is_learning_enabled=True,
+            tone_message_count=1,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[GroupPersonaBinding.group_id],
+            set_={
+                "tone_message_count": GroupPersonaBinding.tone_message_count + 1,
+                "updated_at": func.now(),
+            },
+        )
+        stmt = stmt.returning(GroupPersonaBinding.tone_message_count)
         result = await self._s.execute(stmt)
         return result.scalar_one()
 
+    async def increment_persona_message_count(self, group_id: str) -> int:
+        """Atomically increment and return the new persona learning message count."""
+        return await self.increment_tone_message_count(group_id)
+
     async def reset_tone_message_count(self, group_id: str) -> None:
-        stmt = (
-            update(GroupPersonaBinding)
-            .where(GroupPersonaBinding.group_id == group_id)
-            .values(tone_message_count=0)
+        stmt = pg_insert(GroupPersonaBinding).values(
+            group_id=group_id,
+            base_persona_prompt="",
+            is_learning_enabled=True,
+            tone_message_count=0,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[GroupPersonaBinding.group_id],
+            set_=self._touch_update_values(
+                GroupPersonaBinding,
+                {"tone_message_count": 0},
+            ),
         )
         await self._s.execute(stmt)
+
+    async def reset_persona_message_count(self, group_id: str) -> None:
+        """Reset the persona learning message count."""
+        await self.reset_tone_message_count(group_id)
 
     async def update_persona_binding(
         self,
         group_id: str,
         *,
         bound_persona_id: str | None = ...,
+        base_persona_prompt: str | None = ...,
         is_learning_enabled: bool | None = None,
     ) -> None:
         values: dict[str, Any] = {}
         if bound_persona_id is not ...:
             values["bound_persona_id"] = bound_persona_id
+        if base_persona_prompt is not ...:
+            values["base_persona_prompt"] = base_persona_prompt or ""
         if is_learning_enabled is not None:
             values["is_learning_enabled"] = is_learning_enabled
         if values:
-            stmt = (
-                update(GroupPersonaBinding)
-                .where(GroupPersonaBinding.group_id == group_id)
-                .values(**values)
+            stmt = pg_insert(GroupPersonaBinding).values(
+                **self._merge_insert_values(
+                    {
+                        "group_id": group_id,
+                        "base_persona_prompt": "",
+                        "is_learning_enabled": True,
+                        "tone_message_count": 0,
+                    },
+                    values,
+                )
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[GroupPersonaBinding.group_id],
+                set_=self._touch_update_values(GroupPersonaBinding, values),
             )
             await self._s.execute(stmt)
+
+    async def has_persona_binding_identity(self, group_id: str) -> bool:
+        binding = await self.get_persona_binding(group_id)
+        if binding is None:
+            return False
+        if binding.active_version_id is not None:
+            return True
+        if binding.base_persona_prompt.strip():
+            return True
+        return bool(binding.bound_persona_id)
 
     async def prune_old_tone_versions(
         self, group_id: str, keep_count: int = 10
@@ -869,3 +1151,60 @@ class Repository:
         del_stmt = delete(PersonaToneVersion).where(PersonaToneVersion.id.in_(to_delete))
         result = await self._s.execute(del_stmt)
         return result.rowcount
+
+    async def prune_old_persona_versions(
+        self, group_id: str, keep_count: int = 10
+    ) -> int:
+        """Delete old persona versions beyond keep_count."""
+        return await self.prune_old_tone_versions(group_id, keep_count=keep_count)
+
+    # =====================================================================
+    #  SystemPrompt CRUD
+    # =====================================================================
+
+    async def get_prompt(self, key: str) -> Optional["SystemPrompt"]:
+        from .models import SystemPrompt
+        stmt = select(SystemPrompt).where(SystemPrompt.string_key == key)
+        result = await self._s.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_prompts_by_category(self, category: str) -> list["SystemPrompt"]:
+        from .models import SystemPrompt
+        stmt = select(SystemPrompt).where(SystemPrompt.category == category)
+        result = await self._s.execute(stmt)
+        return list(result.scalars().all())
+
+    async def upsert_prompt(
+        self,
+        string_key: str,
+        value: str,
+        description: str,
+        category: str,
+    ) -> None:
+        from .models import SystemPrompt
+        stmt = pg_insert(SystemPrompt).values(
+            string_key=string_key,
+            value=value,
+            description=description,
+            category=category,
+        ).on_conflict_do_update(
+            index_elements=["string_key"],
+            set_={"value": value, "description": description, "updated_at": func.now()},
+        )
+        await self._s.execute(stmt)
+
+    async def batch_upsert_prompts(self, prompts: list[dict]) -> None:
+        from .models import SystemPrompt
+        for p in prompts:
+            await self.upsert_prompt(
+                string_key=p["string_key"],
+                value=p["value"],
+                description=p["description"],
+                category=p["category"],
+            )
+
+    async def list_all_prompts(self) -> list["SystemPrompt"]:
+        from .models import SystemPrompt
+        stmt = select(SystemPrompt)
+        result = await self._s.execute(stmt)
+        return list(result.scalars().all())
